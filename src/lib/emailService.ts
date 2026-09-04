@@ -56,24 +56,40 @@ const simulateDelay = (ms: number = 500): Promise<void> =>
  * Se conecta a Outlook vía IMAP para recuperar los últimos correos no leídos.
  */
 export async function getEmails(): Promise<Email[]> {
+  const imapUser = process.env.MAIL_USER;
+  const imapPassword = process.env.MAIL_PASSWORD;
+
+  // Si no hay credenciales configuradas (p.ej. en un preview de Vercel sin
+  // secrets), devolvemos un correo de ejemplo para que la UI se pueda ver.
+  if (!imapUser || !imapPassword) {
+    console.warn('Credenciales IMAP no configuradas; usando datos de prueba.');
+    const mockEmail: Email = {
+      id: 'MOCK-1',
+      from: 'Demo',
+      fromEmail: 'demo@exervis.com',
+      subject: 'Correo de prueba',
+      body: 'Este es un correo de demostración para la UI.',
+      date: new Date().toISOString(),
+      status: 'pendiente',
+      attachments: [],
+    };
+    return [mockEmail];
+  }
+
   try {
-    const { getCredentials } = await import('@/app/actions/auth');
-    const credentials = await getCredentials();
+    // Import dinamico (marcado como serverExternalPackages en next.config.ts)
+    // para que el bundler no intente inlinear estos paquetes CJS con
+    // requires dinamicos internos.
+    const [{ default: imaps }, { simpleParser }] = await Promise.all([
+      import('imap-simple'),
+      import('mailparser'),
+    ]);
 
-    if (!credentials) {
-      console.warn('No hay credenciales de Outlook en sesión. Devolviendo buzón vacío (limpio).');
-      return [...emailStore]; 
-    }
-
-    console.log(`\n[IMAP] Iniciando conexión IMAP para ${credentials.email}...`);
-
-    const imaps = (await import('imap-simple')).default;
-    const { simpleParser } = await import('mailparser');
-
+    console.log(`\n[IMAP] Iniciando conexión IMAP para ${imapUser}...`);
     const config = {
       imap: {
-        user: credentials.email,
-        password: credentials.password,
+        user: imapUser,
+        password: imapPassword,
         host: 'imap.one.com',
         port: 993,
         tls: true,

@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Exervis Mail Triage | Gestión Inteligente de Correo",
+  title: "Exervis Mail Intelligence | Gestión Inteligente de Correo",
   description:
     "Sistema de triaje y gestión automática de correos electrónicos potenciado por IA. Clasifica, analiza y redirige tu bandeja de entrada de forma inteligente.",
 };

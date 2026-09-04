@@ -11,20 +11,12 @@ let transporter: Transporter | null = null;
 let currentConfigUser: string | null = null;
 
 async function getTransporter(): Promise<{ transport: Transporter, user: string }> {
-  const { getCredentials } = await import('@/app/actions/auth');
-  const credentials = await getCredentials();
-
-  let user = process.env.MAIL_USER || '';
-  let password = process.env.MAIL_PASSWORD || '';
-
-  if (credentials) {
-    user = credentials.email;
-    password = credentials.password;
-  }
+  const user = process.env.MAIL_USER || '';
+  const password = process.env.MAIL_PASSWORD || '';
 
   if (!user || !password) {
     throw new Error(
-      'No hay credenciales de Outlook en sesión ni en .env.local para poder enviar correos.'
+      'MAIL_USER / MAIL_PASSWORD no configuradas para poder enviar correos.'
     );
   }
 
