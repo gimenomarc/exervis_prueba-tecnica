@@ -42,15 +42,17 @@ Abre `http://localhost:3000`.
 
 ## 2. Iniciar sesión
 
-La pantalla de entrada pide el correo y la contraseña de la cuenta que se va a
-leer (`prueba@exervis.com` u otra que se decida usar). Al enviar el
-formulario, la app **verifica la conexión IMAP de verdad** antes de dejarte
-pasar — si las credenciales son incorrectas, verás el error de conexión real
-en pantalla, no un mensaje genérico.
+El acceso está protegido por una única **contraseña de administrador**
+(`ADMIN_PASSWORD` en `.env.local`), no por el correo/contraseña de la cuenta
+de correo. La pantalla de entrada solo pide esa contraseña compartida.
 
-Las credenciales se guardan en una cookie `httpOnly` de sesión (no en el
-código ni en base de datos) y se usan tanto para leer la bandeja (IMAP) como
-para enviar correos reales cuando corresponda (SMTP).
+Al enviar el formulario, el servidor la compara contra `ADMIN_PASSWORD` y, si
+coincide, guarda una cookie `httpOnly` de sesión (`auth_token`) válida 7 días.
+Si es incorrecta, se muestra un error en pantalla.
+
+Las credenciales de la cuenta de correo (`MAIL_USER` / `MAIL_PASSWORD`) ya no
+se piden en el login: viven solo en `.env.local` y las usa el servidor
+directamente para IMAP/SMTP, nunca se introducen desde el navegador.
 
 ---
 
@@ -188,7 +190,7 @@ obligado a elegir algo.
 |---|---|---|
 | Un correo queda en `status: error` tras procesar | Falta `OPENAI_API_KEY` o es inválida | Revisa `.env.local` y reinicia el servidor |
 | El paso "Reenvío" falla | `MAIL_USER`/`MAIL_PASSWORD` incorrectos con Envío Real activado | Verifica las credenciales de la cuenta de correo |
-| El login rechaza credenciales correctas | El proveedor (One.com) puede requerir ajustes de seguridad específicos en la cuenta | Confirma acceso IMAP/SMTP manual con esas credenciales |
+| El login rechaza la contraseña de acceso | No coincide con `ADMIN_PASSWORD` en `.env.local` del servidor | Revisa espacios de más o confirma el valor con el equipo técnico |
 | La bandeja no trae correos nuevos | No has iniciado sesión, o la sesión caducó | Vuelve a iniciar sesión |
 | Un correo desaparece de la lista tras un rato | *(bug ya corregido)* — si reaparece, revisar `getEmails()` en `emailService.ts` | — |
 
