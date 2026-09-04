@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // 'standalone' solo hace falta para el .zip autocontenido (empaquetar.ps1),
+  // que arranca la app con `node server.js` sin depender de la CLI de Next.
+  // En Vercel, output:'standalone' choca con su propio empaquetado interno
+  // (falla con "ENOENT ... next-server.js.nft.json" en onBuildComplete),
+  // porque Vercel ya genera su propia salida optimizada equivalente. Por
+  // eso se desactiva cuando el build corre en Vercel (process.env.VERCEL).
+  output: process.env.VERCEL ? undefined : 'standalone',
   // El bundler de Next.js (webpack/turbopack) no sabe procesar bien
   // paquetes que hacen require/import dinamico internamente (imap,
   // imap-simple, mailparser). Marcarlos como "external" evita que se
