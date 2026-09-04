@@ -21,7 +21,7 @@ function formatFullDate(dateString: string): string {
   });
 }
 
-const categoryLabels: Record<string, string> = {
+export const categoryLabels: Record<string, string> = {
   ausencia_cliente: '🏥 Ausencia (Cliente)',
   ausencia_produccion: '🏭 Ausencia (Producción)',
   justificante_cobro: '💰 Justificante de cobro',
@@ -70,41 +70,42 @@ export default function EmailViewer({ email, onProcess, isProcessing }: EmailVie
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <StatusBadge status={email.status} />
-            {onProcess && (
-              <button
-                onClick={() => onProcess(email.id)}
-                disabled={isProcessing}
-                className="flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Play className="h-3 w-3" />
+            <div className="flex shrink-0 flex-col items-end gap-3">
+              <div className="flex items-center gap-2">
+                <StatusBadge status={email.status} />
+                {onProcess && (
+                  <button
+                    onClick={() => onProcess(email.id)}
+                    disabled={isProcessing}
+                    className="flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Play className="h-3 w-3" />
+                    )}
+                    <span>{email.status === 'pendiente' ? 'Procesar' : 'Reprocesar'}</span>
+                  </button>
                 )}
-                <span>{email.status === 'pendiente' ? 'Procesar' : 'Reprocesar'}</span>
-              </button>
-            )}
+              </div>
+
+              {/* Huge Category Label */}
+              {email.category && (
+                <div className="flex flex-col items-end gap-1.5 animate-in fade-in slide-in-from-right-4 duration-500">
+                  <div className="flex items-center gap-2 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-4 py-2 text-sm font-bold text-violet-200 shadow-lg shadow-violet-500/10">
+                    <Tag className="h-4 w-4 text-violet-400" />
+                    {categoryLabels[email.category] || email.category}
+                  </div>
+                  {email.summary && (
+                    <div className="text-right text-[11px] font-medium text-zinc-400 max-w-[300px]">
+                      {email.summary}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Category & Summary (if processed) */}
-        {email.category && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <div className="flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-xs text-zinc-300">
-              <Tag className="h-3 w-3 text-violet-400" />
-              {categoryLabels[email.category] || email.category}
-            </div>
-            {email.summary && (
-              <div className="flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-xs text-zinc-400">
-                <FileText className="h-3 w-3 text-zinc-500" />
-                {email.summary}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Email body */}
       <div className="p-5">

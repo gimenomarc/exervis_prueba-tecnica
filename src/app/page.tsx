@@ -79,6 +79,7 @@ export default function LoginPage() {
                   id="email"
                   name="email"
                   required
+                  defaultValue="prueba@exervis.com"
                   placeholder="tu.nombre@exervis.com"
                   className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-10 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
                 />
@@ -96,6 +97,7 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   required
+                  defaultValue={process.env.NEXT_PUBLIC_CTO_PASSWORD || ''}
                   placeholder="••••••••••••••••"
                   className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-10 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
                 />

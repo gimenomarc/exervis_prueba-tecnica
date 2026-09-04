@@ -7,6 +7,9 @@ import EmailList from '@/components/EmailList';
 import EmailViewer from '@/components/EmailViewer';
 import ManagementTimeline from '@/components/ManagementTimeline';
 
+import { X, CheckCircle2, Tag } from 'lucide-react';
+import { categoryLabels } from '@/components/EmailViewer';
+
 export default function DashboardPage() {
   const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -15,6 +18,7 @@ export default function DashboardPage() {
   const [isLoadingEmails, setIsLoadingEmails] = useState(true);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [isProcessingOne, setIsProcessingOne] = useState(false);
+  const [popupEmail, setPopupEmail] = useState<Email | null>(null);
 
   // Fetch emails logic
   const fetchEmails = useCallback(async (showLoader = true) => {
@@ -81,6 +85,9 @@ export default function DashboardPage() {
             return updated || e;
           })
         );
+        if (data.emails.length > 0) {
+          setPopupEmail(data.emails[0]);
+        }
       }
     } catch (error) {
       console.error('Error in auto trigger:', error);
@@ -97,6 +104,7 @@ export default function DashboardPage() {
         setEmails((prev) => prev.map((e) => (e.id === emailId ? data.email : e)));
         setSelectedEmail((prev) => (prev?.id === emailId ? data.email : prev));
         setSelectedLogs(data.logs ?? []);
+        setPopupEmail(data.email);
       }
     } catch (error) {
       console.error('Error processing single email:', error);
@@ -118,6 +126,9 @@ export default function DashboardPage() {
             return updated || e;
           })
         );
+        if (data.emails.length > 0) {
+          setPopupEmail(data.emails[data.emails.length - 1]);
+        }
       }
     } catch (error) {
       console.error('Error in manual process:', error);
@@ -198,6 +209,59 @@ export default function DashboardPage() {
           </div>
         </main>
       </div>
+
+      {/* Result Modal / Popup */}
+      {popupEmail && popupEmail.category && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0c14] shadow-2xl shadow-black animate-in zoom-in-95 duration-200 p-8">
+            <button
+              onClick={() => setPopupEmail(null)}
+              className="absolute right-4 top-4 rounded-full p-2 text-zinc-500 hover:bg-white/[0.05] hover:text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-500/20 ring-1 ring-emerald-500/30">
+                <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+              </div>
+              
+              <h2 className="mb-2 text-2xl font-bold text-white">¡Correo procesado!</h2>
+              <p className="mb-8 text-sm text-zinc-400">
+                La IA ha analizado el correo y ha tomado la siguiente decisión:
+              </p>
+              
+              <div className="w-full space-y-4 text-left">
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wider text-violet-400/70">
+                    Categoría Detectada
+                  </div>
+                  <div className="flex items-center gap-2 text-lg font-bold text-violet-200">
+                    <Tag className="h-5 w-5 text-violet-400" />
+                    {categoryLabels[popupEmail.category] || popupEmail.category}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Acción recomendada / Tomada
+                  </div>
+                  <div className="text-sm text-zinc-300">
+                    {popupEmail.summary || 'Sin resumen disponible.'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setPopupEmail(null)}
+                className="mt-8 w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition-all hover:from-violet-500 hover:to-indigo-500"
+              >
+                Aceptar y Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

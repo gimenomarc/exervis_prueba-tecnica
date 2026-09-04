@@ -246,6 +246,8 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
 
     if (action.type === 'forward') {
       try {
+        // [SIMULACIÓN] - Comentado para la demo al CTO para que no envíe correos reales
+        /*
         await sendForwardEmail({
           to: action.target,
           internalNote: action.internalNote,
@@ -257,7 +259,8 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
             date: email.date,
           },
         });
-        pushLog(emailId, 'success', 'Reenvío', `Correo reenviado por email a ${action.target}.`);
+        */
+        pushLog(emailId, 'success', 'Reenvío', `[SIMULACIÓN] Correo reenviado por email a ${action.target}.`);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Error desconocido al reenviar.';
         pushLog(emailId, 'error', 'Reenvío', `Fallo al reenviar a ${action.target}: ${message}`);
