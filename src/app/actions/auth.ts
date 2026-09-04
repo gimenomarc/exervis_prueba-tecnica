@@ -29,9 +29,10 @@ export async function login(formData: FormData) {
     const connection = await imaps.connect(config);
     connection.end();
     console.log(`[LOGIN] Credenciales verificadas con éxito.`);
-  } catch (err: any) {
-    console.error(`[LOGIN] Error de autenticación:`, err.message);
-    return { error: `No se pudo conectar al correo: ${err.message}` };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error desconocido';
+    console.error(`[LOGIN] Error de autenticación:`, message);
+    return { error: `No se pudo conectar al correo: ${message}` };
   }
 
   // Si llegamos aquí, la conexión fue exitosa

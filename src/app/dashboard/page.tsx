@@ -35,10 +35,11 @@ export default function DashboardPage() {
     fetchProdMode();
   }, []);
 
-  // Fetch emails logic
-  const fetchEmails = useCallback(async (showLoader = true) => {
+  // Fetch emails logic. El spinner de carga inicial ya arranca en `true`
+  // (useState(true) arriba), así que aquí solo hace falta apagarlo al
+  // terminar — nunca hace falta volver a encenderlo desde un efecto.
+  const fetchEmails = useCallback(async () => {
     try {
-      if (showLoader) setIsLoadingEmails(true);
       const res = await fetch('/api/emails');
       const data = await res.json();
       if (data.success) {
@@ -47,7 +48,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error fetching emails:', error);
     } finally {
-      if (showLoader) setIsLoadingEmails(false);
+      setIsLoadingEmails(false);
     }
   }, []);
 
@@ -65,7 +66,10 @@ export default function DashboardPage() {
             return updated || e;
           })
         );
-        if (data.emails.length > 0) {
+        // El popup de resultado solo tiene sentido para el disparo manual
+        // (con spinner) — en el ciclo automático sería intrusivo mostrarlo
+        // cada 15s sin que el usuario haya pedido nada.
+        if (showSpinner && data.emails.length > 0) {
           setPopupEmail(data.emails[data.emails.length - 1]);
         }
       }
@@ -76,20 +80,30 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Initial fetch on mount
+  // Initial fetch on mount. Este es el patrón de "fetch data with Effects"
+  // que la propia documentación de React recomienda; la regla
+  // react-hooks/set-state-in-effect no distingue que el setState real
+  // ocurre tras el primer await dentro de fetchEmails, así que la
+  // silenciamos aquí de forma puntual y justificada.
   useEffect(() => {
-    fetchEmails(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchEmails();
   }, [fetchEmails]);
 
   // Auto: cada 15 segundos refresca la bandeja (trae correos nuevos por
-  // IMAP). El procesado es siempre manual — no se dispara aquí.
+  // IMAP). Si "Envío Real de Correos" está activo, además procesa (y por
+  // tanto reenvía de verdad) todos los pendientes automáticamente. Con el
+  // toggle desactivado, el procesado sigue siendo 100% manual.
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchEmails(false); // sin spinner
+    const intervalId = setInterval(async () => {
+      await fetchEmails();
+      if (prodModeEnabled) {
+        await processPending(false); // sin spinner ni popup, envío real incluido
+      }
     }, 15000);
 
     return () => clearInterval(intervalId);
-  }, [fetchEmails]);
+  }, [fetchEmails, processPending, prodModeEnabled]);
 
   // Handle email selection
   const handleSelectEmail = useCallback(async (email: Email) => {
