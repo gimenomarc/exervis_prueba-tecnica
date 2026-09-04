@@ -1,5 +1,5 @@
 import { Email, AgentLog, TriggerResponse, ProcessResult, LogLevel } from './types';
-import { determineAction } from './businessRules';
+import { determineAction, resolveCategory } from './businessRules';
 import { classifyEmail, LLMClassificationResult } from './aiService';
 import { processAttachments } from './attachmentService';
 import { sendForwardEmail } from './mailService';
@@ -218,16 +218,22 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
     pushLog(emailId, 'info', 'Análisis NLP', 'Analizando contenido del correo con OpenAI...');
 
     const classification = await classifyEmail(email.body, email.fromEmail, attachmentsForLLM);
+    const { category: finalCategory, lowConfidence, lowConfidenceReason } = resolveCategory(
+      classification.category,
+      classification.confidence
+    );
 
     pushLog(
       emailId,
-      'success',
+      lowConfidence ? 'warning' : 'success',
       'Clasificación',
-      `Categoría: ${classification.category} · Remitente: ${classification.senderType}`
+      lowConfidence
+        ? `Confianza baja (${classification.confidence}%) — ${lowConfidenceReason}`
+        : `Categoría: ${finalCategory} · Remitente: ${classification.senderType} · Confianza: ${classification.confidence}%`
     );
     pushLog(emailId, 'info', 'Extracción', summarizeExtraction(classification));
 
-    const action = determineAction(classification.category, classification.senderType);
+    const action = determineAction(finalCategory, classification.senderType);
 
     pushLog(
       emailId,
@@ -277,9 +283,12 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
     const processedEmail: Email = {
       ...email,
       status: finalStatus,
-      category: classification.category,
+      category: finalCategory,
       senderType: classification.senderType,
-      summary: `${action.businessLabel} — ${classification.rationale}`,
+      confidence: classification.confidence,
+      summary: lowConfidence
+        ? `${action.businessLabel} — ${lowConfidenceReason}`
+        : `${action.businessLabel} — ${classification.rationale}`,
     };
 
     emailStore = emailStore.map((e) => (e.id === emailId ? processedEmail : e));

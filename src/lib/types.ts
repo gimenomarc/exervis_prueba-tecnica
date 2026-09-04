@@ -17,7 +17,8 @@ export type BusinessCategory =
   | 'incidencia_servicio'
   | 'autorizacion_recibo'
   | 'solicitud_facturas'
-  | 'queja_precio';
+  | 'queja_precio'
+  | 'sin_clasificar';
 
 // Tipo de remitente (crucial para regla de Ausencias)
 export type SenderType = 'CLIENT' | 'INTERNAL';
@@ -48,6 +49,8 @@ export interface Email {
   senderType?: SenderType;
   summary?: string;
   attachments?: EmailAttachment[];
+  /** Confianza (0-100) del LLM en la categoría asignada. */
+  confidence?: number;
 }
 
 export interface AgentLog {

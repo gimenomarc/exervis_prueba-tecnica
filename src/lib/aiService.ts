@@ -49,6 +49,7 @@ Debes responder SIEMPRE con un JSON válido con esta estructura exacta:
 \`\`\`json
 {
   "category": "<una de las 10 categorías listadas arriba>",
+  "confidence": <número entero de 0 a 100: tu nivel de confianza real en la categoría elegida>,
   "rationale": "<explicación breve en lenguaje de negocio de POR QUÉ has elegido esta categoría>",
   "senderType": "CLIENT" | "INTERNAL",
   "extractedData": {
@@ -62,6 +63,16 @@ Debes responder SIEMPRE con un JSON válido con esta estructura exacta:
   }
 }
 \`\`\`
+
+## Cómo calibrar "confidence":
+- Usa un valor ALTO (>80) cuando el correo encaje claramente y sin ambigüedad en una categoría.
+- Usa un valor MEDIO (40-80) cuando encaje razonablemente pero falte algún dato o haya cierta ambigüedad.
+- Usa un valor BAJO (<40) cuando el correo sea vago, esté vacío, sea spam, mezcle varios motivos sin
+  que quede claro cuál prevalece, o no tengas certeza real de la categoría — en ese caso igualmente
+  rellena "category" con tu mejor estimación, pero refleja la baja confianza real en el número.
+- NO infles "confidence" solo por rellenar el campo: un correo será marcado como "sin clasificar" y
+  enviado a revisión humana si tu confianza es baja, así que es preferible ser honesto que forzar un
+  número alto.
 
 ## Adjuntos:
 Además del cuerpo del correo, puedes recibir texto extraído de documentos adjuntos (PDF, Word, Excel)
@@ -83,6 +94,8 @@ no te bases solo en el texto del cuerpo si el adjunto aporta información releva
 
 export interface LLMClassificationResult {
   category: BusinessCategory;
+  /** Confianza (0-100) que el propio LLM reporta en la categoría elegida. */
+  confidence: number;
   rationale: string;
   senderType: SenderType;
   extractedData: {
@@ -152,8 +165,17 @@ function parseClassification(raw: string): LLMClassificationResult {
     throw new Error(`senderType devuelto por el LLM no reconocido: "${String(obj.senderType)}"`);
   }
 
+  // Si el LLM omite o devuelve un valor de confianza inválido, se trata
+  // como 0 (confianza nula) en vez de asumir que la clasificación es fiable
+  // — así cae de forma segura en el umbral de "sin_clasificar".
+  const rawConfidence = Number(obj.confidence);
+  const confidence = Number.isFinite(rawConfidence)
+    ? Math.max(0, Math.min(100, Math.round(rawConfidence)))
+    : 0;
+
   return {
     category,
+    confidence,
     rationale: typeof obj.rationale === 'string' ? obj.rationale : '',
     senderType,
     extractedData: {

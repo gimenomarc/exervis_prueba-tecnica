@@ -161,7 +161,61 @@ export const BUSINESS_RULES: Record<BusinessCategory, {
       },
     },
   },
+  sin_clasificar: {
+    label: 'Sin clasificar (confianza baja)',
+    icon: '❓',
+    description: 'La IA no alcanzó suficiente confianza para asignar una categoría de negocio con seguridad.',
+    actions: {
+      default: {
+        type: 'manual_review',
+        target: 'revision_manual',
+        internalNote: 'Confianza de clasificación por debajo del umbral — revisar manualmente',
+        businessLabel: 'Revisión manual (confianza insuficiente)',
+        requiresHuman: true,
+      },
+    },
+  },
 };
+
+// ==========================================
+// Umbral de confianza de clasificación
+// ==========================================
+
+/**
+ * Confianza mínima (0-100) que debe reportar el LLM para aceptar su
+ * categoría. Por debajo de este umbral, se sobreescribe a
+ * 'sin_clasificar' en vez de fingir una clasificación poco fiable.
+ * Configurable vía CLASSIFICATION_CONFIDENCE_THRESHOLD en .env.
+ */
+export const CONFIDENCE_THRESHOLD = (() => {
+  const raw = Number(process.env.CLASSIFICATION_CONFIDENCE_THRESHOLD);
+  return Number.isFinite(raw) && raw >= 0 && raw <= 100 ? raw : 60;
+})();
+
+export interface CategoryResolution {
+  category: BusinessCategory;
+  lowConfidence: boolean;
+  lowConfidenceReason?: string;
+}
+
+/**
+ * Aplica el umbral de confianza a la categoría sugerida por la IA.
+ * Si la confianza reportada es insuficiente, degrada a 'sin_clasificar'
+ * y explica por qué (categoría original sugerida + puntuación).
+ */
+export function resolveCategory(
+  suggestedCategory: BusinessCategory,
+  confidence: number
+): CategoryResolution {
+  if (confidence < CONFIDENCE_THRESHOLD) {
+    return {
+      category: 'sin_clasificar',
+      lowConfidence: true,
+      lowConfidenceReason: `Confianza del modelo (${confidence}%) por debajo del umbral configurado (${CONFIDENCE_THRESHOLD}%). Categoría sugerida por la IA: ${suggestedCategory}.`,
+    };
+  }
+  return { category: suggestedCategory, lowConfidence: false };
+}
 
 // ==========================================
 // Motor de Decisión

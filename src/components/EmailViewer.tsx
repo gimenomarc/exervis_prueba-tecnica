@@ -31,6 +31,7 @@ export const categoryLabels: Record<string, string> = {
   autorizacion_recibo: '🔄 Autorización recibo',
   solicitud_facturas: '📤 Solicitud de facturas',
   queja_precio: '🚨 Queja por subida de precios',
+  sin_clasificar: '❓ Sin clasificar (confianza baja)',
 };
 
 export default function EmailViewer({ email, onProcess, isProcessing }: EmailViewerProps) {
@@ -105,6 +106,11 @@ export default function EmailViewer({ email, onProcess, isProcessing }: EmailVie
                 <div className="flex items-center gap-2 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-4 py-2 text-sm font-bold text-violet-200 shadow-lg shadow-violet-500/10">
                   <Tag className="h-4 w-4 text-violet-400" />
                   {categoryLabels[email.category] || email.category}
+                  {typeof email.confidence === 'number' && (
+                    <span className="rounded-full bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-violet-200/80">
+                      {email.confidence}%
+                    </span>
+                  )}
                 </div>
                 {email.summary && (
                   <button
