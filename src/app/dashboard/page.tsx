@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingEmails, setIsLoadingEmails] = useState(true);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [isProcessingOne, setIsProcessingOne] = useState(false);
 
   // Fetch emails on mount
   useEffect(() => {
@@ -75,6 +76,24 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Handle processing a single, specific email on demand
+  const handleProcessOne = useCallback(async (emailId: string) => {
+    setIsProcessingOne(true);
+    try {
+      const res = await fetch(`/api/emails/${emailId}/process`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.email) {
+        setEmails((prev) => prev.map((e) => (e.id === emailId ? data.email : e)));
+        setSelectedEmail((prev) => (prev?.id === emailId ? data.email : prev));
+        setSelectedLogs(data.logs ?? []);
+      }
+    } catch (error) {
+      console.error('Error processing single email:', error);
+    } finally {
+      setIsProcessingOne(false);
+    }
+  }, []);
+
   // Handle manual process
   const handleManualProcess = useCallback(async () => {
     setIsProcessing(true);
@@ -129,12 +148,22 @@ export default function DashboardPage() {
         <main className="flex flex-1 flex-col overflow-hidden">
           {/* Email Viewer - Top half */}
           <div className="h-1/2 overflow-y-auto border-b border-white/[0.06] scrollbar-thin">
-            <EmailViewer email={selectedEmail} />
+            <EmailViewer
+              email={selectedEmail}
+              onProcess={handleProcessOne}
+              isProcessing={isProcessingOne}
+            />
           </div>
 
           {/* Management Timeline - Bottom half */}
           <div className="h-1/2 overflow-hidden">
-            <ManagementTimeline logs={selectedLogs} isLoading={isLoadingLogs} />
+            <ManagementTimeline
+              logs={selectedLogs}
+              isLoading={isLoadingLogs}
+              emailId={selectedEmail?.id}
+              attachments={selectedEmail?.attachments}
+              emailStatus={selectedEmail?.status}
+            />
           </div>
         </main>
       </div>

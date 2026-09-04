@@ -2,6 +2,8 @@ import { Email, AgentLog, TriggerResponse, ProcessResult, LogLevel } from './typ
 import { mockEmails, mockAgentLogs } from './mock-data';
 import { determineAction } from './businessRules';
 import { classifyEmail, LLMClassificationResult } from './aiService';
+import { processAttachments } from './attachmentService';
+import { sendForwardEmail } from './mailService';
 
 // ==========================================
 // Email Service
@@ -10,15 +12,22 @@ import { classifyEmail, LLMClassificationResult } from './aiService';
 // 1. Recibir correo (por ahora, bandeja mockeada — IMAP/webhook pendiente)
 // 2. Clasificar con IA real (aiService.ts → OpenAI)
 // 3. Aplicar reglas de negocio (businessRules.ts)
-// 4. Registrar la acción a ejecutar (reenvío real por SMTP pendiente)
+// 4. Ejecutar la acción: si es "forward", reenviar de verdad por SMTP
+//    (mailService.ts → Outlook/Microsoft 365)
 //
 // Estado en memoria: no hay base de datos, el store vive mientras el
 // proceso de Next.js esté arriba. Se reinicia al reiniciar el server.
 // ==========================================
 
 let emailStore: Email[] = [...mockEmails];
+
+// Solo se heredan logs mock para correos que YA arrancan 'procesado' en los
+// datos de ejemplo (p.ej. email-004). Un correo 'pendiente' no debe mostrar
+// historial de gestión hasta que realmente se procese.
 const logStore: Record<string, AgentLog[]> = Object.fromEntries(
-  Object.entries(mockAgentLogs).map(([id, logs]) => [id, [...logs]])
+  Object.entries(mockAgentLogs)
+    .filter(([id]) => mockEmails.find((e) => e.id === id)?.status === 'procesado')
+    .map(([id, logs]) => [id, [...logs]])
 );
 
 let logCounter = 0;
@@ -89,12 +98,9 @@ function summarizeExtraction(classification: LLMClassificationResult): string {
 }
 
 /**
- * Procesa un correo individual: clasificación IA real + reglas de negocio.
+ * Procesa un correo individual: clasificación IA real + reglas de negocio +
+ * ejecución de la acción (reenvío SMTP real cuando corresponda).
  * Genera el historial de logs en tiempo real reflejando cada paso.
- *
- * 🔌 PENDIENTE: ejecutar la acción real (reenvío SMTP a prueba3@exervis.com)
- * cuando la regla de negocio sea de tipo "forward". Por ahora solo se
- * determina y se registra la acción a ejecutar.
  */
 export async function processEmail(emailId: string): Promise<ProcessResult | null> {
   const email = emailStore.find((e) => e.id === emailId);
@@ -105,9 +111,31 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
   pushLog(emailId, 'info', 'Recepción', `Correo recibido de ${email.fromEmail}`);
 
   try {
+    let attachmentsForLLM: { texts: { filename: string; text: string }[]; images: { filename: string; mimeType: string; base64: string }[] } = {
+      texts: [],
+      images: [],
+    };
+
+    if (email.attachments && email.attachments.length > 0) {
+      const { texts, images, errors } = await processAttachments(email.attachments);
+      attachmentsForLLM = { texts, images };
+
+      const parts: string[] = [];
+      if (texts.length) parts.push(`${texts.length} documento(s) analizado(s): ${texts.map((t) => t.filename).join(', ')}`);
+      if (images.length) parts.push(`${images.length} imagen(es) enviada(s) a visión: ${images.map((i) => i.filename).join(', ')}`);
+      if (errors.length) parts.push(`${errors.length} con error: ${errors.map((e) => `${e.filename} (${e.message})`).join('; ')}`);
+
+      pushLog(
+        emailId,
+        errors.length > 0 ? 'warning' : 'info',
+        'Adjuntos',
+        parts.length ? parts.join(' · ') : 'Sin adjuntos procesables.'
+      );
+    }
+
     pushLog(emailId, 'info', 'Análisis NLP', 'Analizando contenido del correo con OpenAI...');
 
-    const classification = await classifyEmail(email.body, email.fromEmail);
+    const classification = await classifyEmail(email.body, email.fromEmail, attachmentsForLLM);
 
     pushLog(
       emailId,
@@ -126,9 +154,32 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
       `${action.businessLabel} → ${action.target}`
     );
 
+    let finalStatus: Email['status'] = 'procesado';
+
+    if (action.type === 'forward') {
+      try {
+        await sendForwardEmail({
+          to: action.target,
+          internalNote: action.internalNote,
+          originalEmail: {
+            from: email.from,
+            fromEmail: email.fromEmail,
+            subject: email.subject,
+            body: email.body,
+            date: email.date,
+          },
+        });
+        pushLog(emailId, 'success', 'Reenvío', `Correo reenviado por email a ${action.target}.`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error desconocido al reenviar.';
+        pushLog(emailId, 'error', 'Reenvío', `Fallo al reenviar a ${action.target}: ${message}`);
+        finalStatus = 'error';
+      }
+    }
+
     const processedEmail: Email = {
       ...email,
-      status: 'procesado',
+      status: finalStatus,
       category: classification.category,
       senderType: classification.senderType,
       summary: `${action.businessLabel} — ${classification.rationale}`,
@@ -136,7 +187,14 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
 
     emailStore = emailStore.map((e) => (e.id === emailId ? processedEmail : e));
 
-    pushLog(emailId, 'success', 'Completado', 'Procesamiento finalizado.');
+    pushLog(
+      emailId,
+      finalStatus === 'error' ? 'error' : 'success',
+      'Completado',
+      finalStatus === 'error'
+        ? 'Procesamiento finalizado con errores en el reenvío.'
+        : 'Procesamiento finalizado.'
+    );
 
     return { email: processedEmail, logs: logStore[emailId] ?? [] };
   } catch (error) {

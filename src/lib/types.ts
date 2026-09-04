@@ -27,6 +27,15 @@ export type ActionType = 'forward' | 'system_action' | 'manual_review';
 
 export type LogLevel = 'info' | 'success' | 'warning' | 'error';
 
+// Adjunto de un correo. `content` va en base64, tal como lo entregaría
+// el proveedor de correo (IMAP/API) o un upload manual.
+export interface EmailAttachment {
+  filename: string;
+  mimeType: string;
+  content: string; // base64
+  size: number;
+}
+
 export interface Email {
   id: string;
   from: string;
@@ -38,6 +47,7 @@ export interface Email {
   category?: BusinessCategory;
   senderType?: SenderType;
   summary?: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface AgentLog {

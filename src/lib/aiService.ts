@@ -63,8 +63,15 @@ Debes responder SIEMPRE con un JSON válido con esta estructura exacta:
 }
 \`\`\`
 
+## Adjuntos:
+Además del cuerpo del correo, puedes recibir texto extraído de documentos adjuntos (PDF, Word, Excel)
+marcado como "--- Adjunto: <nombre> ---", y/o imágenes adjuntas (fotos, capturas, documentos escaneados).
+El motivo real del correo puede estar únicamente en un adjunto (p. ej. un parte médico en PDF, o un
+justificante bancario fotografiado): analiza también ese contenido para clasificar y extraer datos,
+no te bases solo en el texto del cuerpo si el adjunto aporta información relevante.
+
 ## Restricciones:
-- NO inventes datos que no estén en el correo.
+- NO inventes datos que no estén en el correo o en sus adjuntos.
 - Si no puedes determinar la categoría con confianza, usa la más cercana y explícalo en "rationale".
 - La "urgency" debe ser "high" para quejas, incidencias y autorizaciones de recibos devueltos.
 - Responde SOLO con el JSON, sin texto adicional.
@@ -164,16 +171,49 @@ function parseClassification(raw: string): LLMClassificationResult {
   };
 }
 
+export interface ClassifyEmailAttachments {
+  /** Texto ya extraído de adjuntos de documento (PDF/DOCX/XLSX). */
+  texts?: { filename: string; text: string }[];
+  /** Imágenes adjuntas, enviadas tal cual a visión (gpt-4o-mini las soporta). */
+  images?: { filename: string; mimeType: string; base64: string }[];
+}
+
 /**
  * Clasifica un correo electrónico llamando a la API de OpenAI, usando
- * el SYSTEM_PROMPT con las reglas de negocio de Exervis.
+ * el SYSTEM_PROMPT con las reglas de negocio de Exervis. Si el correo
+ * tiene adjuntos, su texto extraído se añade al mensaje y sus imágenes
+ * se envían directamente al modelo (visión).
  */
 export async function classifyEmail(
   emailBody: string,
-  senderEmail: string
+  senderEmail: string,
+  attachments?: ClassifyEmailAttachments
 ): Promise<LLMClassificationResult> {
   const client = getOpenAIClient();
   const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+  const attachmentTextBlock = (attachments?.texts ?? [])
+    .map((a) => `--- Adjunto: ${a.filename} ---\n${a.text}`)
+    .join('\n\n');
+
+  const userText = [
+    `Remitente: ${senderEmail}`,
+    '',
+    'Cuerpo del correo:',
+    emailBody,
+    attachmentTextBlock ? `\n${attachmentTextBlock}` : '',
+  ].join('\n');
+
+  const contentParts: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+    { type: 'text', text: userText },
+  ];
+
+  for (const image of attachments?.images ?? []) {
+    contentParts.push({
+      type: 'image_url',
+      image_url: { url: `data:${image.mimeType};base64,${image.base64}` },
+    });
+  }
 
   const completion = await client.chat.completions.create({
     model,
@@ -181,10 +221,7 @@ export async function classifyEmail(
     response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `Remitente: ${senderEmail}\n\nCuerpo del correo:\n${emailBody}`,
-      },
+      { role: 'user', content: contentParts },
     ],
   });
 

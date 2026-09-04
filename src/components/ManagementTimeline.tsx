@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { AgentLog, LogLevel } from '@/lib/types';
+import { AgentLog, EmailAttachment, EmailStatus, LogLevel } from '@/lib/types';
 import {
   ClipboardList,
   ChevronDown,
-  Mail,
   Brain,
   CheckCircle2,
   AlertTriangle,
@@ -13,11 +12,16 @@ import {
   ArrowRight,
   Clock,
   Sparkles,
+  Paperclip,
+  Download,
 } from 'lucide-react';
 
 interface ManagementTimelineProps {
   logs: AgentLog[];
   isLoading?: boolean;
+  emailId?: string | null;
+  attachments?: EmailAttachment[];
+  emailStatus?: EmailStatus;
 }
 
 // ==========================================
@@ -26,6 +30,7 @@ interface ManagementTimelineProps {
 
 interface TimelineStep {
   id: string;
+  rawStep: string;
   icon: string;
   title: string;
   description: string;
@@ -36,20 +41,24 @@ interface TimelineStep {
 
 const stepIcons: Record<string, string> = {
   'Recepción': '📧',
+  'Adjuntos': '📎',
   'Análisis NLP': '🧠',
   'Clasificación': '🏷️',
   'Extracción': '📋',
   'Acción': '▶️',
+  'Reenvío': '📤',
   'Completado': '✅',
   'Análisis de Sentimiento': '💭',
 };
 
 const stepTitles: Record<string, string> = {
   'Recepción': 'Email recibido',
+  'Adjuntos': 'Adjuntos analizados',
   'Análisis NLP': 'Analizado por IA',
   'Clasificación': 'Categoría asignada',
   'Extracción': 'Datos extraídos',
   'Acción': 'Acción determinada',
+  'Reenvío': 'Correo reenviado',
   'Completado': 'Procesamiento completado',
   'Análisis de Sentimiento': 'Análisis de sentimiento',
 };
@@ -57,6 +66,7 @@ const stepTitles: Record<string, string> = {
 function mapLogToStep(log: AgentLog): TimelineStep {
   return {
     id: log.id,
+    rawStep: log.step,
     icon: stepIcons[log.step] ?? '📌',
     title: stepTitles[log.step] ?? log.step,
     description: log.message,
@@ -130,7 +140,7 @@ const levelStyles: Record<LogLevel, {
   },
 };
 
-export default function ManagementTimeline({ logs, isLoading }: ManagementTimelineProps) {
+export default function ManagementTimeline({ logs, isLoading, emailId, attachments, emailStatus }: ManagementTimelineProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const steps = logs.map(mapLogToStep);
 
@@ -172,12 +182,18 @@ export default function ManagementTimeline({ logs, isLoading }: ManagementTimeli
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-zinc-500">
-                {isLoading ? 'Procesando correo...' : 'Sin historial de gestión'}
+                {isLoading
+                  ? 'Procesando correo...'
+                  : emailId && emailStatus === 'pendiente'
+                    ? 'Este correo aún no se ha procesado'
+                    : 'Sin historial de gestión'}
               </p>
               <p className="mt-1 text-xs text-zinc-600">
                 {isLoading
                   ? 'La IA está analizando el contenido del correo'
-                  : 'Selecciona un correo para ver su historial'}
+                  : emailId && emailStatus === 'pendiente'
+                    ? 'Pulsa "Procesar" para generar su historial de gestión'
+                    : 'Selecciona un correo para ver su historial'}
               </p>
             </div>
           </div>
@@ -210,9 +226,18 @@ export default function ManagementTimeline({ logs, isLoading }: ManagementTimeli
                       />
                     </div>
 
-                    {/* Step card (accordion) */}
-                    <button
+                    {/* Step card (accordion) — div instead of button so the nested
+                        attachment <a> download links stay valid HTML */}
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => step.detail && toggleExpand(step.id)}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ' ') && step.detail) {
+                          e.preventDefault();
+                          toggleExpand(step.id);
+                        }
+                      }}
                       className={`group w-full rounded-xl border p-3.5 text-left transition-all duration-300 ${
                         style.border
                       } ${
@@ -242,6 +267,22 @@ export default function ManagementTimeline({ logs, isLoading }: ManagementTimeli
                             <p className="mt-1 text-xs leading-relaxed text-zinc-400">
                               {step.description}
                             </p>
+                            {step.rawStep === 'Adjuntos' && emailId && attachments && attachments.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                {attachments.map((attachment) => (
+                                  <a
+                                    key={attachment.filename}
+                                    href={`/api/emails/${emailId}/attachments/${encodeURIComponent(attachment.filename)}`}
+                                    download={attachment.filename}
+                                    className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[11px] text-zinc-300 transition-colors hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300"
+                                  >
+                                    <Paperclip className="h-3 w-3 text-zinc-500" />
+                                    <span className="max-w-[160px] truncate">{attachment.filename}</span>
+                                    <Download className="h-3 w-3 text-zinc-500" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -275,7 +316,7 @@ export default function ManagementTimeline({ logs, isLoading }: ManagementTimeli
                           </div>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   </div>
                 );
               })}
