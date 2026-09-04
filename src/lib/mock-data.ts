@@ -1,9 +1,22 @@
-import { Email, AgentLog } from './types';
+import fs from 'node:fs';
+import path from 'node:path';
+import { Email, AgentLog, EmailAttachment } from './types';
 
 // ==========================================
 // Mock Emails - Simulación de bandeja de entrada
 // ==========================================
 // Correos representativos de las 10 categorías de negocio de Exervis
+
+function loadFixtureAttachment(filename: string, mimeType: string): EmailAttachment {
+  const filePath = path.join(process.cwd(), 'src/lib/fixtures/attachments', filename);
+  const buffer = fs.readFileSync(filePath);
+  return {
+    filename,
+    mimeType,
+    content: buffer.toString('base64'),
+    size: buffer.length,
+  };
+}
 
 export const mockEmails: Email[] = [
   {
@@ -44,6 +57,61 @@ export const mockEmails: Email[] = [
     category: 'incidencia_servicio',
     senderType: 'CLIENT',
     summary: 'Incidencia reportada: falta de personal de limpieza en turno de tarde desde 01/09/2026.',
+  },
+  // ==========================================
+  // Correos con adjuntos reales (PDF/DOCX/XLSX/imagen) — el cuerpo es
+  // deliberadamente vago: el motivo real está en el adjunto, para probar
+  // que la IA lo lee y clasifica en base a su contenido.
+  // ==========================================
+  {
+    id: 'email-005',
+    from: 'Laura Fernández Molina',
+    fromEmail: 'laura.fernandez@cliente-externo.com',
+    subject: 'Documentación adjunta',
+    body: `Buenos días,\n\nLes adjunto la documentación correspondiente.\n\nUn saludo,\nLaura Fernández Molina`,
+    date: '2026-09-05T09:00:00Z',
+    status: 'pendiente',
+    attachments: [loadFixtureAttachment('parte-medico.pdf', 'application/pdf')],
+  },
+  {
+    id: 'email-006',
+    from: 'Pedro Sánchez Díaz',
+    fromEmail: 'pedro.sanchez@partner.com',
+    subject: 'Adjunto solicitud',
+    body: `Hola,\n\nOs paso adjunta la solicitud comentada por teléfono.\n\nGracias,\nPedro`,
+    date: '2026-09-05T10:30:00Z',
+    status: 'pendiente',
+    attachments: [
+      loadFixtureAttachment(
+        'solicitud-presupuesto.docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ),
+    ],
+  },
+  {
+    id: 'email-007',
+    from: 'Carlos Rodríguez Pérez',
+    fromEmail: 'carlos.rodriguez@proveedor.es',
+    subject: 'Datos para facturar',
+    body: `Buenas,\n\nAdjunto el detalle para la facturación de este mes.\n\nSaludos.`,
+    date: '2026-09-05T12:00:00Z',
+    status: 'pendiente',
+    attachments: [
+      loadFixtureAttachment(
+        'horas-puntuales.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ),
+    ],
+  },
+  {
+    id: 'email-008',
+    from: 'Ana Martínez Ruiz',
+    fromEmail: 'ana.martinez@cliente.com',
+    subject: 'Recibo bancario adjunto',
+    body: `Hola,\n\nOs adjunto la imagen del recibo que comentamos.\n\nGracias.`,
+    date: '2026-09-05T13:15:00Z',
+    status: 'pendiente',
+    attachments: [loadFixtureAttachment('imagen-placeholder.png', 'image/png')],
   },
 ];
 

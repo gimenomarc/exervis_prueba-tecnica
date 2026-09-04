@@ -1,21 +1,58 @@
-import { Email, AgentLog, TriggerResponse, ProcessResult, BusinessCategory } from './types';
+import { Email, AgentLog, TriggerResponse, ProcessResult, LogLevel } from './types';
 import { mockEmails, mockAgentLogs } from './mock-data';
 import { determineAction } from './businessRules';
-import { classifyEmail } from './aiService';
+import { classifyEmail, LLMClassificationResult } from './aiService';
+import { processAttachments } from './attachmentService';
+import { sendForwardEmail } from './mailService';
 
 // ==========================================
 // Email Service
 // ==========================================
 // Este servicio orquesta el flujo de procesamiento de correos:
-// 1. Recibir correo (IMAP/Webhook)
-// 2. Clasificar con IA (aiService.ts)
+// 1. Recibir correo (por ahora, bandeja mockeada — IMAP/webhook pendiente)
+// 2. Clasificar con IA real (aiService.ts → OpenAI)
 // 3. Aplicar reglas de negocio (businessRules.ts)
-// 4. Ejecutar acción (reenviar, sistema, revisión manual)
+// 4. Ejecutar la acción: si es "forward", reenviar de verdad por SMTP
+//    (mailService.ts → Outlook/Microsoft 365)
 //
-// 🔌 PUNTO DE INYECCIÓN: LangChain / OpenAI
-// En la versión de producción, las funciones de este servicio se conectarán
-// con la cadena de LangChain para el análisis y clasificación de correos.
+// Estado en memoria: no hay base de datos, el store vive mientras el
+// proceso de Next.js esté arriba. Se reinicia al reiniciar el server.
 // ==========================================
+
+let emailStore: Email[] = [...mockEmails];
+
+// Solo se heredan logs mock para correos que YA arrancan 'procesado' en los
+// datos de ejemplo (p.ej. email-004). Un correo 'pendiente' no debe mostrar
+// historial de gestión hasta que realmente se procese.
+const logStore: Record<string, AgentLog[]> = Object.fromEntries(
+  Object.entries(mockAgentLogs)
+    .filter(([id]) => mockEmails.find((e) => e.id === id)?.status === 'procesado')
+    .map(([id, logs]) => [id, [...logs]])
+);
+
+let logCounter = 0;
+function nextLogId(emailId: string): string {
+  logCounter += 1;
+  return `log-${emailId}-${logCounter}`;
+}
+
+function pushLog(
+  emailId: string,
+  level: LogLevel,
+  step: string,
+  message: string
+): AgentLog {
+  const log: AgentLog = {
+    id: nextLogId(emailId),
+    emailId,
+    timestamp: new Date().toISOString(),
+    level,
+    step,
+    message,
+  };
+  logStore[emailId] = [...(logStore[emailId] ?? []), log];
+  return log;
+}
 
 // Simula un delay de red/procesamiento
 const simulateDelay = (ms: number = 500): Promise<void> =>
@@ -25,127 +62,188 @@ const simulateDelay = (ms: number = 500): Promise<void> =>
  * Obtiene todos los correos electrónicos.
  *
  * 🔌 INYECCIÓN FUTURA:
- * Aquí se conectará con el proveedor de correo (IMAP/API)
- * para obtener los correos reales de la bandeja de entrada.
- * Ejemplo: await imapClient.fetchEmails({ folder: 'INBOX', unseen: true })
+ * Aquí se conectará con el proveedor de correo (IMAP/API) para obtener
+ * los correos reales de la bandeja de entrada de prueba@exervis.com.
  */
 export async function getEmails(): Promise<Email[]> {
   await simulateDelay(300);
-  return [...mockEmails];
+  return [...emailStore];
 }
 
 /**
  * Obtiene un correo específico por su ID.
- *
- * 🔌 INYECCIÓN FUTURA:
- * Se reemplazará por una consulta a la base de datos o al proveedor de correo.
- * Ejemplo: await db.emails.findUnique({ where: { id } })
  */
 export async function getEmailById(id: string): Promise<Email | null> {
   await simulateDelay(200);
-  return mockEmails.find((email) => email.id === id) ?? null;
+  return emailStore.find((email) => email.id === id) ?? null;
 }
 
 /**
  * Obtiene los logs del agente para un correo específico.
- *
- * 🔌 INYECCIÓN FUTURA:
- * Los logs se generarán en tiempo real durante el procesamiento
- * del agente LangChain y se almacenarán en la base de datos.
- * Ejemplo: await db.agentLogs.findMany({ where: { emailId } })
  */
 export async function getLogsByEmailId(emailId: string): Promise<AgentLog[]> {
   await simulateDelay(200);
-  return mockAgentLogs[emailId] ?? [];
+  return logStore[emailId] ?? [];
+}
+
+function summarizeExtraction(classification: LLMClassificationResult): string {
+  const { extractedData } = classification;
+  const parts: string[] = [];
+  if (extractedData.senderName) parts.push(`Remitente: ${extractedData.senderName}`);
+  if (extractedData.senderCompany) parts.push(`Empresa: ${extractedData.senderCompany}`);
+  if (extractedData.keyDates.length) parts.push(`Fechas: ${extractedData.keyDates.join(', ')}`);
+  if (extractedData.amounts.length) parts.push(`Importes: ${extractedData.amounts.join(', ')}`);
+  if (extractedData.references.length) parts.push(`Referencias: ${extractedData.references.join(', ')}`);
+  return parts.length ? parts.join(' · ') : 'Sin datos adicionales extraídos.';
 }
 
 /**
- * Procesa un correo individual: clasificación IA + reglas de negocio.
- *
- * 🔌 INYECCIÓN FUTURA: LangChain Agent
- * En producción, esta función:
- * 1. Llamará a classifyEmail() con el LLM real
- * 2. Pasará el resultado a determineAction() del motor de reglas
- * 3. Ejecutará la acción (reenvío, registro en sistema, etc.)
- *
- * ```typescript
- * const classification = await classifyEmail(email.body, email.fromEmail);
- * const action = determineAction(classification.category, classification.senderType);
- * await executeAction(action, email);
- * ```
+ * Procesa un correo individual: clasificación IA real + reglas de negocio +
+ * ejecución de la acción (reenvío SMTP real cuando corresponda).
+ * Genera el historial de logs en tiempo real reflejando cada paso.
  */
 export async function processEmail(emailId: string): Promise<ProcessResult | null> {
-  await simulateDelay(1500); // Simula tiempo de procesamiento del LLM
-
-  const email = mockEmails.find((e) => e.id === emailId);
+  const email = emailStore.find((e) => e.id === emailId);
   if (!email) return null;
 
-  // 🔌 INYECCIÓN FUTURA: Reemplazar por classifyEmail() real
-  const classification = await classifyEmail(email.body, email.fromEmail);
+  // Reinicia el historial para no mezclar logs de ejecuciones/mocks anteriores.
+  logStore[emailId] = [];
+  pushLog(emailId, 'info', 'Recepción', `Correo recibido de ${email.fromEmail}`);
 
-  // Aplicar motor de reglas de negocio
-  const action = determineAction(classification.category, classification.senderType);
+  try {
+    let attachmentsForLLM: { texts: { filename: string; text: string }[]; images: { filename: string; mimeType: string; base64: string }[] } = {
+      texts: [],
+      images: [],
+    };
 
-  // Simulamos el cambio de estado
-  const processedEmail: Email = {
-    ...email,
-    status: 'procesado',
-    category: classification.category,
-    senderType: classification.senderType,
-    summary: `${action.businessLabel} — ${classification.rationale}`,
-  };
+    if (email.attachments && email.attachments.length > 0) {
+      const { texts, images, errors } = await processAttachments(email.attachments);
+      attachmentsForLLM = { texts, images };
 
-  const logs = mockAgentLogs[emailId] ?? [];
+      const parts: string[] = [];
+      if (texts.length) parts.push(`${texts.length} documento(s) analizado(s): ${texts.map((t) => t.filename).join(', ')}`);
+      if (images.length) parts.push(`${images.length} imagen(es) enviada(s) a visión: ${images.map((i) => i.filename).join(', ')}`);
+      if (errors.length) parts.push(`${errors.length} con error: ${errors.map((e) => `${e.filename} (${e.message})`).join('; ')}`);
 
-  return { email: processedEmail, logs };
+      pushLog(
+        emailId,
+        errors.length > 0 ? 'warning' : 'info',
+        'Adjuntos',
+        parts.length ? parts.join(' · ') : 'Sin adjuntos procesables.'
+      );
+    }
+
+    pushLog(emailId, 'info', 'Análisis NLP', 'Analizando contenido del correo con OpenAI...');
+
+    const classification = await classifyEmail(email.body, email.fromEmail, attachmentsForLLM);
+
+    pushLog(
+      emailId,
+      'success',
+      'Clasificación',
+      `Categoría: ${classification.category} · Remitente: ${classification.senderType}`
+    );
+    pushLog(emailId, 'info', 'Extracción', summarizeExtraction(classification));
+
+    const action = determineAction(classification.category, classification.senderType);
+
+    pushLog(
+      emailId,
+      action.requiresHuman ? 'warning' : 'info',
+      'Acción',
+      `${action.businessLabel} → ${action.target}`
+    );
+
+    let finalStatus: Email['status'] = 'procesado';
+
+    if (action.type === 'forward') {
+      try {
+        await sendForwardEmail({
+          to: action.target,
+          internalNote: action.internalNote,
+          originalEmail: {
+            from: email.from,
+            fromEmail: email.fromEmail,
+            subject: email.subject,
+            body: email.body,
+            date: email.date,
+          },
+        });
+        pushLog(emailId, 'success', 'Reenvío', `Correo reenviado por email a ${action.target}.`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error desconocido al reenviar.';
+        pushLog(emailId, 'error', 'Reenvío', `Fallo al reenviar a ${action.target}: ${message}`);
+        finalStatus = 'error';
+      }
+    }
+
+    const processedEmail: Email = {
+      ...email,
+      status: finalStatus,
+      category: classification.category,
+      senderType: classification.senderType,
+      summary: `${action.businessLabel} — ${classification.rationale}`,
+    };
+
+    emailStore = emailStore.map((e) => (e.id === emailId ? processedEmail : e));
+
+    pushLog(
+      emailId,
+      finalStatus === 'error' ? 'error' : 'success',
+      'Completado',
+      finalStatus === 'error'
+        ? 'Procesamiento finalizado con errores en el reenvío.'
+        : 'Procesamiento finalizado.'
+    );
+
+    return { email: processedEmail, logs: logStore[emailId] ?? [] };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido al clasificar.';
+    pushLog(emailId, 'error', 'Acción', `Fallo en la clasificación: ${message}`);
+
+    const erroredEmail: Email = { ...email, status: 'error' };
+    emailStore = emailStore.map((e) => (e.id === emailId ? erroredEmail : e));
+
+    return { email: erroredEmail, logs: logStore[emailId] ?? [] };
+  }
 }
 
 /**
  * Procesa todos los correos pendientes (modo masivo / one-shot).
- *
- * 🔌 INYECCIÓN FUTURA: Batch Processing con LangChain
- * Se ejecutará el agente de LangChain en modo batch para procesar
- * todos los correos pendientes de forma secuencial o paralela.
+ * Cada correo se procesa de forma aislada: si uno falla, el resto continúa.
  */
 export async function processAllEmails(): Promise<TriggerResponse> {
-  await simulateDelay(2000); // Simula procesamiento masivo
+  const pendingIds = emailStore.filter((e) => e.status === 'pendiente').map((e) => e.id);
 
-  const pendingEmails = mockEmails.filter((e) => e.status === 'pendiente');
   const processedEmails: Email[] = [];
-
-  for (const email of pendingEmails) {
-    const classification = await classifyEmail(email.body, email.fromEmail);
-    const action = determineAction(classification.category, classification.senderType);
-
-    processedEmails.push({
-      ...email,
-      status: 'procesado',
-      category: classification.category,
-      senderType: classification.senderType,
-      summary: `${action.businessLabel} — ${classification.rationale}`,
-    });
+  for (const id of pendingIds) {
+    const result = await processEmail(id);
+    if (result) processedEmails.push(result.email);
   }
+
+  const failedCount = processedEmails.filter((e) => e.status === 'error').length;
 
   return {
     success: true,
-    message: `Se han procesado ${processedEmails.length} correos pendientes.`,
+    message:
+      failedCount > 0
+        ? `Se han procesado ${processedEmails.length} correos (${failedCount} con error).`
+        : `Se han procesado ${processedEmails.length} correos pendientes.`,
     processedCount: processedEmails.length,
     emails: processedEmails,
   };
 }
 
 /**
- * Simula la recepción de un nuevo correo vía webhook.
+ * Simula la recepción de un nuevo correo vía webhook: procesa el primer
+ * correo pendiente encontrado.
  *
  * 🔌 INYECCIÓN FUTURA: Webhook Handler
- * Este endpoint será llamado por el proveedor de correo cuando
- * llegue un nuevo mensaje. Se procesará automáticamente con el agente.
+ * Este endpoint será llamado por el proveedor de correo cuando llegue
+ * un nuevo mensaje real.
  */
 export async function handleAutoTrigger(): Promise<TriggerResponse> {
-  await simulateDelay(1000);
-
-  // Simula procesamiento del primer correo pendiente
-  const firstPending = mockEmails.find((e) => e.status === 'pendiente');
+  const firstPending = emailStore.find((e) => e.status === 'pendiente');
   if (!firstPending) {
     return {
       success: true,
@@ -155,13 +253,14 @@ export async function handleAutoTrigger(): Promise<TriggerResponse> {
   }
 
   const result = await processEmail(firstPending.id);
-  const logs = mockAgentLogs[firstPending.id] ?? [];
 
   return {
     success: true,
-    message: `Correo "${firstPending.subject}" procesado automáticamente.`,
-    processedCount: 1,
+    message: result
+      ? `Correo "${firstPending.subject}" procesado automáticamente.`
+      : 'No se pudo procesar el correo.',
+    processedCount: result ? 1 : 0,
     emails: result ? [result.email] : [],
-    logs,
+    logs: result?.logs ?? [],
   };
 }

@@ -2,10 +2,12 @@
 
 import { Email } from '@/lib/types';
 import StatusBadge from './StatusBadge';
-import { User, Calendar, Tag, FileText, MousePointerClick } from 'lucide-react';
+import { User, Calendar, Tag, FileText, MousePointerClick, Play, Loader2 } from 'lucide-react';
 
 interface EmailViewerProps {
   email: Email | null;
+  onProcess?: (emailId: string) => void;
+  isProcessing?: boolean;
 }
 
 function formatFullDate(dateString: string): string {
@@ -32,7 +34,7 @@ const categoryLabels: Record<string, string> = {
   queja_precio: '🚨 Queja por subida de precios',
 };
 
-export default function EmailViewer({ email }: EmailViewerProps) {
+export default function EmailViewer({ email, onProcess, isProcessing }: EmailViewerProps) {
   if (!email) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
@@ -68,7 +70,23 @@ export default function EmailViewer({ email }: EmailViewerProps) {
               </div>
             </div>
           </div>
-          <StatusBadge status={email.status} />
+          <div className="flex shrink-0 items-center gap-2">
+            <StatusBadge status={email.status} />
+            {onProcess && (
+              <button
+                onClick={() => onProcess(email.id)}
+                disabled={isProcessing}
+                className="flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Play className="h-3 w-3" />
+                )}
+                <span>{email.status === 'pendiente' ? 'Procesar' : 'Reprocesar'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Category & Summary (if processed) */}

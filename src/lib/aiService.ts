@@ -1,13 +1,11 @@
+import OpenAI from 'openai';
 import { BusinessCategory, SenderType } from './types';
 
 // ==========================================
 // AI Service - Servicio de Inteligencia Artificial
 // ==========================================
-// Este módulo define el prompt del sistema y la interfaz de comunicación
-// con el LLM (Large Language Model). Actualmente mockeado, preparado
-// para conectar con LangChain + OpenAI/Anthropic.
-//
-// 🔌 PUNTO DE INYECCIÓN: LangChain / OpenAI / Anthropic
+// Este módulo define el prompt del sistema y clasifica cada correo
+// llamando a la API de OpenAI (Chat Completions, salida JSON).
 // ==========================================
 
 // ==========================================
@@ -65,41 +63,19 @@ Debes responder SIEMPRE con un JSON válido con esta estructura exacta:
 }
 \`\`\`
 
+## Adjuntos:
+Además del cuerpo del correo, puedes recibir texto extraído de documentos adjuntos (PDF, Word, Excel)
+marcado como "--- Adjunto: <nombre> ---", y/o imágenes adjuntas (fotos, capturas, documentos escaneados).
+El motivo real del correo puede estar únicamente en un adjunto (p. ej. un parte médico en PDF, o un
+justificante bancario fotografiado): analiza también ese contenido para clasificar y extraer datos,
+no te bases solo en el texto del cuerpo si el adjunto aporta información relevante.
+
 ## Restricciones:
-- NO inventes datos que no estén en el correo.
+- NO inventes datos que no estén en el correo o en sus adjuntos.
 - Si no puedes determinar la categoría con confianza, usa la más cercana y explícalo en "rationale".
 - La "urgency" debe ser "high" para quejas, incidencias y autorizaciones de recibos devueltos.
 - Responde SOLO con el JSON, sin texto adicional.
 `;
-
-// ==========================================
-// Schema de validación (preparado para Zod)
-// ==========================================
-// 🔌 INYECCIÓN FUTURA: Usar con zod + LangChain Structured Output
-//
-// ```typescript
-// import { z } from 'zod';
-// import { ChatOpenAI } from '@langchain/openai';
-//
-// const LLMResponseSchema = z.object({
-//   category: z.enum([...businessCategories]),
-//   rationale: z.string().describe('Explicación en lenguaje de negocio'),
-//   senderType: z.enum(['CLIENT', 'INTERNAL']),
-//   extractedData: z.object({
-//     senderName: z.string(),
-//     senderCompany: z.string().optional(),
-//     keyDates: z.array(z.string()),
-//     amounts: z.array(z.string()),
-//     references: z.array(z.string()),
-//     urgency: z.enum(['low', 'medium', 'high']),
-//     summary: z.string(),
-//   }),
-// });
-//
-// const llm = new ChatOpenAI({ model: 'gpt-4o', temperature: 0 });
-// const structuredLLM = llm.withStructuredOutput(LLMResponseSchema);
-// const result = await structuredLLM.invoke([...messages]);
-// ```
 
 // ==========================================
 // Interfaz del resultado del LLM
@@ -120,103 +96,139 @@ export interface LLMClassificationResult {
   };
 }
 
-// ==========================================
-// Función mockeada de clasificación
-// ==========================================
+const VALID_CATEGORIES: BusinessCategory[] = [
+  'ausencia_cliente',
+  'ausencia_produccion',
+  'justificante_cobro',
+  'info_facturacion',
+  'cambio_cuenta',
+  'cambio_datos_presupuesto',
+  'incidencia_servicio',
+  'autorizacion_recibo',
+  'solicitud_facturas',
+  'queja_precio',
+];
+
+const VALID_SENDER_TYPES: SenderType[] = ['CLIENT', 'INTERNAL'];
+const VALID_URGENCIES = ['low', 'medium', 'high'] as const;
+
+let openaiClient: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error(
+      'OPENAI_API_KEY no configurada. Añádela en .env.local para poder clasificar correos.'
+    );
+  }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiClient;
+}
 
 /**
- * Clasifica un correo electrónico usando el LLM.
- *
- * 🔌 INYECCIÓN FUTURA: LangChain Structured Output
- * ```typescript
- * export async function classifyEmail(emailBody: string, senderEmail: string): Promise<LLMClassificationResult> {
- *   const llm = new ChatOpenAI({ model: 'gpt-4o', temperature: 0 });
- *   const structuredLLM = llm.withStructuredOutput(LLMResponseSchema);
- *   const result = await structuredLLM.invoke([
- *     { role: 'system', content: SYSTEM_PROMPT },
- *     { role: 'user', content: `Remitente: ${senderEmail}\n\nCuerpo del correo:\n${emailBody}` },
- *   ]);
- *   return result;
- * }
- * ```
+ * Valida y normaliza el JSON devuelto por el LLM contra el shape esperado.
+ * Lanza si el modelo devuelve algo fuera de las categorías/tipos definidos,
+ * para no fingir una clasificación incorrecta.
  */
-export async function classifyEmail(
-  emailBody: string,
-  senderEmail: string
-): Promise<LLMClassificationResult> {
-  // Simulación de delay del LLM
-  await new Promise((resolve) => setTimeout(resolve, 800));
+function parseClassification(raw: string): LLMClassificationResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('El LLM no devolvió un JSON válido.');
+  }
 
-  // Mock: clasificación basada en keywords (será reemplazada por LLM real)
-  const body = emailBody.toLowerCase();
-  const email = senderEmail.toLowerCase();
+  const obj = parsed as Record<string, unknown>;
+  const category = obj.category as BusinessCategory;
+  const senderType = obj.senderType as SenderType;
+  const extractedData = (obj.extractedData ?? {}) as Record<string, unknown>;
+  const urgency = extractedData.urgency as string;
 
-  const isInternal = email.endsWith('@exervis.com');
-  const senderType: SenderType = isInternal ? 'INTERNAL' : 'CLIENT';
-
-  let category: BusinessCategory = 'cambio_datos_presupuesto'; // fallback
-  let rationale = '';
-  let urgency: 'low' | 'medium' | 'high' = 'low';
-  let summary = '';
-
-  if (body.includes('ausencia') || body.includes('baja') || body.includes('enfermedad')) {
-    category = isInternal ? 'ausencia_produccion' : 'ausencia_cliente';
-    rationale = `Se ha detectado una comunicación de ausencia/baja. El remitente es ${isInternal ? 'personal interno' : 'un cliente externo'}.`;
-    urgency = 'medium';
-    summary = 'Comunicación de ausencia laboral.';
-  } else if (body.includes('justificante') || body.includes('transferencia') || body.includes('confirming')) {
-    category = 'justificante_cobro';
-    rationale = 'El correo contiene un justificante de pago o comprobante de transferencia bancaria.';
-    urgency = 'low';
-    summary = 'Justificante de pago/transferencia recibido.';
-  } else if (body.includes('queja') || body.includes('reclamación') || body.includes('subida de precio')) {
-    category = 'queja_precio';
-    rationale = 'El cliente expresa disconformidad con una subida de precios. Requiere atención manual.';
-    urgency = 'high';
-    summary = 'Queja por incremento de precios en contrato.';
-  } else if (body.includes('incidencia') || body.includes('fallo') || body.includes('problema en el servicio')) {
-    category = 'incidencia_servicio';
-    rationale = 'Se reporta una incidencia o problema en la prestación del servicio.';
-    urgency = 'high';
-    summary = 'Reporte de incidencia en el servicio.';
-  } else if (body.includes('factura') && (body.includes('enviar') || body.includes('solicito') || body.includes('reenviar'))) {
-    category = 'solicitud_facturas';
-    rationale = 'El remitente solicita el envío o reenvío de facturas.';
-    urgency = 'medium';
-    summary = 'Solicitud de envío de facturas.';
-  } else if (body.includes('cuenta') && (body.includes('cambio') || body.includes('actualizar') || body.includes('nuevo número'))) {
-    category = 'cambio_cuenta';
-    rationale = 'Se solicita actualización de datos bancarios (número de cuenta).';
-    urgency = 'medium';
-    summary = 'Solicitud de cambio de cuenta bancaria.';
-  } else if (body.includes('recibo devuelto') || body.includes('autorización') || body.includes('domiciliación')) {
-    category = 'autorizacion_recibo';
-    rationale = 'Autorización relacionada con recibo bancario devuelto.';
-    urgency = 'high';
-    summary = 'Autorización de recibo devuelto.';
-  } else if (body.includes('presupuesto') || body.includes('datos de cliente') || body.includes('modificar datos')) {
-    category = 'cambio_datos_presupuesto';
-    rationale = 'Solicitud de cambio de datos de cliente o gestión de presupuestos.';
-    urgency = 'low';
-    summary = 'Cambio de datos o presupuesto.';
-  } else if (body.includes('horas') || body.includes('facturar') || body.includes('puntual')) {
-    category = 'info_facturacion';
-    rationale = 'Se recibe información necesaria para emitir facturación.';
-    urgency = 'low';
-    summary = 'Información para facturación recibida.';
+  if (!VALID_CATEGORIES.includes(category)) {
+    throw new Error(`Categoría devuelta por el LLM no reconocida: "${String(obj.category)}"`);
+  }
+  if (!VALID_SENDER_TYPES.includes(senderType)) {
+    throw new Error(`senderType devuelto por el LLM no reconocido: "${String(obj.senderType)}"`);
   }
 
   return {
     category,
-    rationale,
+    rationale: typeof obj.rationale === 'string' ? obj.rationale : '',
     senderType,
     extractedData: {
-      senderName: 'Extraído por mock',
-      keyDates: [],
-      amounts: [],
-      references: [],
-      urgency,
-      summary,
+      senderName: typeof extractedData.senderName === 'string' ? extractedData.senderName : '',
+      senderCompany:
+        typeof extractedData.senderCompany === 'string' ? extractedData.senderCompany : undefined,
+      keyDates: Array.isArray(extractedData.keyDates) ? extractedData.keyDates : [],
+      amounts: Array.isArray(extractedData.amounts) ? extractedData.amounts : [],
+      references: Array.isArray(extractedData.references) ? extractedData.references : [],
+      urgency: (VALID_URGENCIES as readonly string[]).includes(urgency)
+        ? (urgency as 'low' | 'medium' | 'high')
+        : 'low',
+      summary: typeof extractedData.summary === 'string' ? extractedData.summary : '',
     },
   };
+}
+
+export interface ClassifyEmailAttachments {
+  /** Texto ya extraído de adjuntos de documento (PDF/DOCX/XLSX). */
+  texts?: { filename: string; text: string }[];
+  /** Imágenes adjuntas, enviadas tal cual a visión (gpt-4o-mini las soporta). */
+  images?: { filename: string; mimeType: string; base64: string }[];
+}
+
+/**
+ * Clasifica un correo electrónico llamando a la API de OpenAI, usando
+ * el SYSTEM_PROMPT con las reglas de negocio de Exervis. Si el correo
+ * tiene adjuntos, su texto extraído se añade al mensaje y sus imágenes
+ * se envían directamente al modelo (visión).
+ */
+export async function classifyEmail(
+  emailBody: string,
+  senderEmail: string,
+  attachments?: ClassifyEmailAttachments
+): Promise<LLMClassificationResult> {
+  const client = getOpenAIClient();
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+  const attachmentTextBlock = (attachments?.texts ?? [])
+    .map((a) => `--- Adjunto: ${a.filename} ---\n${a.text}`)
+    .join('\n\n');
+
+  const userText = [
+    `Remitente: ${senderEmail}`,
+    '',
+    'Cuerpo del correo:',
+    emailBody,
+    attachmentTextBlock ? `\n${attachmentTextBlock}` : '',
+  ].join('\n');
+
+  const contentParts: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+    { type: 'text', text: userText },
+  ];
+
+  for (const image of attachments?.images ?? []) {
+    contentParts.push({
+      type: 'image_url',
+      image_url: { url: `data:${image.mimeType};base64,${image.base64}` },
+    });
+  }
+
+  const completion = await client.chat.completions.create({
+    model,
+    temperature: 0,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: contentParts },
+    ],
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('La API de OpenAI no devolvió contenido.');
+  }
+
+  return parseClassification(content);
 }
