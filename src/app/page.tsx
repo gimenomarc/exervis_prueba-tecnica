@@ -69,26 +69,8 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300" htmlFor="email">
-                Correo de Outlook / Exervis
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  defaultValue="prueba@exervis.com"
-                  placeholder="tu.nombre@exervis.com"
-                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-10 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                />
-              </div>
-            </div>
-
-            <div>
               <label className="mb-2 block text-sm font-medium text-zinc-300" htmlFor="password">
-                Contraseña
+                Contraseña de acceso (Admin)
               </label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
@@ -97,7 +79,6 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   required
-                  defaultValue={process.env.NEXT_PUBLIC_CTO_PASSWORD || ''}
                   placeholder="••••••••••••••••"
                   className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-10 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
                 />
@@ -112,12 +93,12 @@ export default function LoginPage() {
               {isConnecting ? (
                 <>
                   <Loader2 className="h-4.5 w-4.5 animate-spin" />
-                  <span>Conectando e iniciando sesión...</span>
+                  <span>Verificando acceso...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4.5 w-4.5" />
-                  <span>Conectar cuenta de Correo</span>
+                  <span>Acceder al Dashboard</span>
                   <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                 </>
               )}
@@ -126,7 +107,7 @@ export default function LoginPage() {
 
           {/* Footer note */}
           <p className="mt-6 text-center text-[11px] text-zinc-600">
-            Las credenciales solo se usan temporalmente en memoria para esta prueba y no se guardan en base de datos.
+            Acceso restringido. Por favor, introduce la contraseña para gestionar el agente de correos.
           </p>
         </div>
       </div>

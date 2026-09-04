@@ -57,23 +57,23 @@ const simulateDelay = (ms: number = 500): Promise<void> =>
  */
 export async function getEmails(): Promise<Email[]> {
   try {
-    const { getCredentials } = await import('@/app/actions/auth');
-    const credentials = await getCredentials();
+    const imapUser = process.env.MAIL_USER;
+    const imapPassword = process.env.MAIL_PASSWORD;
 
-    if (!credentials) {
-      console.warn('No hay credenciales de Outlook en sesión. Devolviendo buzón vacío (limpio).');
+    if (!imapUser || !imapPassword) {
+      console.warn('Faltan MAIL_USER o MAIL_PASSWORD en variables de entorno. Devolviendo buzón vacío (limpio).');
       return [...emailStore]; 
     }
 
-    console.log(`\n[IMAP] Iniciando conexión IMAP para ${credentials.email}...`);
+    console.log(`\n[IMAP] Iniciando conexión IMAP para ${imapUser}...`);
 
     const imaps = (await import('imap-simple')).default;
     const { simpleParser } = await import('mailparser');
 
     const config = {
       imap: {
-        user: credentials.email,
-        password: credentials.password,
+        user: imapUser,
+        password: imapPassword,
         host: 'imap.one.com',
         port: 993,
         tls: true,

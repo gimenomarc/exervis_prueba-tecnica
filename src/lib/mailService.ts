@@ -11,16 +11,8 @@ let transporter: Transporter | null = null;
 let currentConfigUser: string | null = null;
 
 async function getTransporter(): Promise<{ transport: Transporter, user: string }> {
-  const { getCredentials } = await import('@/app/actions/auth');
-  const credentials = await getCredentials();
-
   let user = process.env.MAIL_USER || '';
   let password = process.env.MAIL_PASSWORD || '';
-
-  if (credentials) {
-    user = credentials.email;
-    password = credentials.password;
-  }
 
   if (!user || !password) {
     throw new Error(
