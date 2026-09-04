@@ -4,12 +4,26 @@
 
 export type EmailStatus = 'pendiente' | 'procesado' | 'error';
 
-export type EmailCategory = 
-  | 'ausencia'
-  | 'documentacion'
-  | 'queja'
-  | 'informacion'
-  | 'otro';
+// ==========================================
+// Categorías de negocio (10 reglas del cliente)
+// ==========================================
+export type BusinessCategory =
+  | 'ausencia_cliente'
+  | 'ausencia_produccion'
+  | 'justificante_cobro'
+  | 'info_facturacion'
+  | 'cambio_cuenta'
+  | 'cambio_datos_presupuesto'
+  | 'incidencia_servicio'
+  | 'autorizacion_recibo'
+  | 'solicitud_facturas'
+  | 'queja_precio';
+
+// Tipo de remitente (crucial para regla de Ausencias)
+export type SenderType = 'CLIENT' | 'INTERNAL';
+
+// Tipo de acción del motor de reglas
+export type ActionType = 'forward' | 'system_action' | 'manual_review';
 
 export type LogLevel = 'info' | 'success' | 'warning' | 'error';
 
@@ -21,7 +35,8 @@ export interface Email {
   body: string;
   date: string;
   status: EmailStatus;
-  category?: EmailCategory;
+  category?: BusinessCategory;
+  senderType?: SenderType;
   summary?: string;
 }
 
@@ -32,6 +47,14 @@ export interface AgentLog {
   level: LogLevel;
   step: string;
   message: string;
+}
+
+export interface ActionResult {
+  type: ActionType;
+  target: string;
+  internalNote: string;
+  businessLabel: string;
+  requiresHuman: boolean;
 }
 
 export interface TriggerResponse {

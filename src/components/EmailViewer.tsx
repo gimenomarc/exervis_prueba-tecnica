@@ -20,11 +20,16 @@ function formatFullDate(dateString: string): string {
 }
 
 const categoryLabels: Record<string, string> = {
-  ausencia: '🏥 Ausencia / Baja',
-  documentacion: '📄 Documentación',
-  queja: '⚠️ Queja / Reclamación',
-  informacion: 'ℹ️ Solicitud de Información',
-  otro: '📋 Otros',
+  ausencia_cliente: '🏥 Ausencia (Cliente)',
+  ausencia_produccion: '🏭 Ausencia (Producción)',
+  justificante_cobro: '💰 Justificante de cobro',
+  info_facturacion: '📊 Info. facturación',
+  cambio_cuenta: '🏦 Cambio de cuenta',
+  cambio_datos_presupuesto: '📋 Cambio datos / Presupuesto',
+  incidencia_servicio: '⚠️ Incidencia en servicio',
+  autorizacion_recibo: '🔄 Autorización recibo',
+  solicitud_facturas: '📤 Solicitud de facturas',
+  queja_precio: '🚨 Queja por subida de precios',
 };
 
 export default function EmailViewer({ email }: EmailViewerProps) {

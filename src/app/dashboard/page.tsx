@@ -5,7 +5,7 @@ import { Email, AgentLog } from '@/lib/types';
 import TopBar from '@/components/TopBar';
 import EmailList from '@/components/EmailList';
 import EmailViewer from '@/components/EmailViewer';
-import AgentLogs from '@/components/AgentLogs';
+import ManagementTimeline from '@/components/ManagementTimeline';
 
 export default function DashboardPage() {
   const [emails, setEmails] = useState<Email[]>([]);
@@ -46,7 +46,7 @@ export default function DashboardPage() {
       if (data.success && data.logs) {
         // Simulate streaming logs one by one
         for (let i = 0; i < data.logs.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 250));
           setSelectedLogs((prev) => [...prev, data.logs[i]]);
         }
       }
@@ -125,15 +125,17 @@ export default function DashboardPage() {
           )}
         </aside>
 
-        {/* Right Column - Viewer & Logs */}
+        {/* Right Column - Email Viewer (top) + Management Timeline (bottom) */}
         <main className="flex flex-1 flex-col overflow-hidden">
-          {/* Email Viewer */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin">
+          {/* Email Viewer - Top half */}
+          <div className="h-1/2 overflow-y-auto border-b border-white/[0.06] scrollbar-thin">
             <EmailViewer email={selectedEmail} />
           </div>
 
-          {/* Agent Logs */}
-          <AgentLogs logs={selectedLogs} isLoading={isLoadingLogs} />
+          {/* Management Timeline - Bottom half */}
+          <div className="h-1/2 overflow-hidden">
+            <ManagementTimeline logs={selectedLogs} isLoading={isLoadingLogs} />
+          </div>
         </main>
       </div>
     </div>

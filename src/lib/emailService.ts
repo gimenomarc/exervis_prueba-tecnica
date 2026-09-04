@@ -1,11 +1,16 @@
-import { Email, AgentLog, TriggerResponse, ProcessResult } from './types';
+import { Email, AgentLog, TriggerResponse, ProcessResult, BusinessCategory } from './types';
 import { mockEmails, mockAgentLogs } from './mock-data';
+import { determineAction } from './businessRules';
+import { classifyEmail } from './aiService';
 
 // ==========================================
 // Email Service
 // ==========================================
-// Este servicio contiene funciones mockeadas que simulan la interacción
-// con un proveedor de correo y el procesamiento por parte de un agente IA.
+// Este servicio orquesta el flujo de procesamiento de correos:
+// 1. Recibir correo (IMAP/Webhook)
+// 2. Clasificar con IA (aiService.ts)
+// 3. Aplicar reglas de negocio (businessRules.ts)
+// 4. Ejecutar acción (reenviar, sistema, revisión manual)
 //
 // 🔌 PUNTO DE INYECCIÓN: LangChain / OpenAI
 // En la versión de producción, las funciones de este servicio se conectarán
@@ -55,19 +60,18 @@ export async function getLogsByEmailId(emailId: string): Promise<AgentLog[]> {
 }
 
 /**
- * Procesa un correo individual (simula el análisis del agente IA).
+ * Procesa un correo individual: clasificación IA + reglas de negocio.
  *
  * 🔌 INYECCIÓN FUTURA: LangChain Agent
- * Esta función será reemplazada por la ejecución del agente de LangChain:
+ * En producción, esta función:
+ * 1. Llamará a classifyEmail() con el LLM real
+ * 2. Pasará el resultado a determineAction() del motor de reglas
+ * 3. Ejecutará la acción (reenvío, registro en sistema, etc.)
  *
  * ```typescript
- * import { ChatOpenAI } from '@langchain/openai';
- * import { AgentExecutor, createOpenAIFunctionsAgent } from 'langchain/agents';
- *
- * const llm = new ChatOpenAI({ modelName: 'gpt-4', temperature: 0 });
- * const agent = createOpenAIFunctionsAgent({ llm, tools, prompt });
- * const executor = AgentExecutor.fromAgentAndTools({ agent, tools });
- * const result = await executor.invoke({ email: emailContent });
+ * const classification = await classifyEmail(email.body, email.fromEmail);
+ * const action = determineAction(classification.category, classification.senderType);
+ * await executeAction(action, email);
  * ```
  */
 export async function processEmail(emailId: string): Promise<ProcessResult | null> {
@@ -76,12 +80,19 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
   const email = mockEmails.find((e) => e.id === emailId);
   if (!email) return null;
 
+  // 🔌 INYECCIÓN FUTURA: Reemplazar por classifyEmail() real
+  const classification = await classifyEmail(email.body, email.fromEmail);
+
+  // Aplicar motor de reglas de negocio
+  const action = determineAction(classification.category, classification.senderType);
+
   // Simulamos el cambio de estado
   const processedEmail: Email = {
     ...email,
     status: 'procesado',
-    category: getCategoryFromSubject(email.subject),
-    summary: `Correo procesado automáticamente. Asunto analizado: "${email.subject}"`,
+    category: classification.category,
+    senderType: classification.senderType,
+    summary: `${action.businessLabel} — ${classification.rationale}`,
   };
 
   const logs = mockAgentLogs[emailId] ?? [];
@@ -95,24 +106,25 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
  * 🔌 INYECCIÓN FUTURA: Batch Processing con LangChain
  * Se ejecutará el agente de LangChain en modo batch para procesar
  * todos los correos pendientes de forma secuencial o paralela.
- *
- * ```typescript
- * const pendingEmails = await db.emails.findMany({ where: { status: 'pendiente' } });
- * const results = await Promise.all(
- *   pendingEmails.map(email => agentExecutor.invoke({ email }))
- * );
- * ```
  */
 export async function processAllEmails(): Promise<TriggerResponse> {
   await simulateDelay(2000); // Simula procesamiento masivo
 
   const pendingEmails = mockEmails.filter((e) => e.status === 'pendiente');
-  const processedEmails = pendingEmails.map((email) => ({
-    ...email,
-    status: 'procesado' as const,
-    category: getCategoryFromSubject(email.subject),
-    summary: `Correo procesado en lote. Asunto: "${email.subject}"`,
-  }));
+  const processedEmails: Email[] = [];
+
+  for (const email of pendingEmails) {
+    const classification = await classifyEmail(email.body, email.fromEmail);
+    const action = determineAction(classification.category, classification.senderType);
+
+    processedEmails.push({
+      ...email,
+      status: 'procesado',
+      category: classification.category,
+      senderType: classification.senderType,
+      summary: `${action.businessLabel} — ${classification.rationale}`,
+    });
+  }
 
   return {
     success: true,
@@ -128,14 +140,6 @@ export async function processAllEmails(): Promise<TriggerResponse> {
  * 🔌 INYECCIÓN FUTURA: Webhook Handler
  * Este endpoint será llamado por el proveedor de correo cuando
  * llegue un nuevo mensaje. Se procesará automáticamente con el agente.
- *
- * ```typescript
- * // Webhook de Microsoft Graph / Gmail API
- * const notification = parseWebhookPayload(req.body);
- * const email = await fetchEmailFromProvider(notification.resourceId);
- * const result = await agentExecutor.invoke({ email });
- * await saveResultToDatabase(result);
- * ```
  */
 export async function handleAutoTrigger(): Promise<TriggerResponse> {
   await simulateDelay(1000);
@@ -160,29 +164,4 @@ export async function handleAutoTrigger(): Promise<TriggerResponse> {
     emails: result ? [result.email] : [],
     logs,
   };
-}
-
-// ==========================================
-// Utilidades internas
-// ==========================================
-
-/**
- * Asigna una categoría basada en el asunto del correo.
- * 🔌 INYECCIÓN FUTURA: Será reemplazada por la clasificación del LLM.
- */
-function getCategoryFromSubject(subject: string): Email['category'] {
-  const lower = subject.toLowerCase();
-  if (lower.includes('ausencia') || lower.includes('baja') || lower.includes('enfermedad')) {
-    return 'ausencia';
-  }
-  if (lower.includes('factura') || lower.includes('transferencia') || lower.includes('justificante')) {
-    return 'documentacion';
-  }
-  if (lower.includes('queja') || lower.includes('reclamación') || lower.includes('precio')) {
-    return 'queja';
-  }
-  if (lower.includes('información') || lower.includes('consulta') || lower.includes('solicitud')) {
-    return 'informacion';
-  }
-  return 'otro';
 }

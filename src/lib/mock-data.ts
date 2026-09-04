@@ -3,6 +3,7 @@ import { Email, AgentLog } from './types';
 // ==========================================
 // Mock Emails - Simulación de bandeja de entrada
 // ==========================================
+// Correos representativos de las 10 categorías de negocio de Exervis
 
 export const mockEmails: Email[] = [
   {
@@ -35,18 +36,20 @@ export const mockEmails: Email[] = [
   {
     id: 'email-004',
     from: 'Pedro Sánchez Díaz',
-    fromEmail: 'pedro.sanchez@partner.com',
-    subject: 'Solicitud de información sobre servicios de consultoría',
-    body: `Estimados señores,\n\nNuestra empresa está evaluando la contratación de servicios de consultoría tecnológica para un proyecto de transformación digital que iniciaremos en el primer trimestre de 2027.\n\nNos gustaría recibir información detallada sobre:\n1. Catálogo de servicios de consultoría disponibles\n2. Casos de éxito en proyectos similares\n3. Estructura de tarifas y modalidades de contratación\n4. Disponibilidad del equipo para una reunión introductoria\n\nQuedamos a la espera de su respuesta.\n\nUn cordial saludo,\nPedro Sánchez Díaz\nCTO - Innovaciones Digitales S.L.`,
+    fromEmail: 'pedro.sanchez@cliente.com',
+    subject: 'Incidencia en servicio de limpieza - Centro Norte',
+    body: `Estimados,\n\nLes escribo para reportar una incidencia en el servicio de limpieza contratado para nuestras instalaciones del Centro Norte (Ref. contrato: SRV-2025-0312).\n\nDesde el pasado lunes 01/09/2026, el personal asignado no se ha presentado en el turno de tarde (14:00-22:00), lo que ha provocado quejas internas de nuestros empleados y un deterioro visible de la limpieza en las áreas comunes.\n\nNecesitamos una solución urgente y que se restablezca el servicio completo a la mayor brevedad posible.\n\nUn saludo,\nPedro Sánchez Díaz\nFacilities Manager - Centro Empresarial Norte S.A.`,
     date: '2026-09-02T09:05:00Z',
     status: 'procesado',
-    category: 'informacion',
-    summary: 'Solicitud comercial de información sobre servicios de consultoría tecnológica para proyecto de transformación digital.',
+    category: 'incidencia_servicio',
+    senderType: 'CLIENT',
+    summary: 'Incidencia reportada: falta de personal de limpieza en turno de tarde desde 01/09/2026.',
   },
 ];
 
 // ==========================================
 // Mock Agent Logs - Simulación de logs del agente IA
+// Escritos en lenguaje de negocio para el Historial de Gestión
 // ==========================================
 
 export const mockAgentLogs: Record<string, AgentLog[]> = {
@@ -65,7 +68,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-04T08:15:03Z',
       level: 'info',
       step: 'Análisis NLP',
-      message: 'Analizando contenido del correo con LLM...',
+      message: 'Analizando contenido del correo con motor de IA...',
     },
     {
       id: 'log-001-3',
@@ -73,7 +76,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-04T08:15:05Z',
       level: 'success',
       step: 'Clasificación',
-      message: 'Categoría detectada: AUSENCIA | Confianza: 97.2%',
+      message: 'Categoría: AUSENCIA (Cliente) | Confianza: 97.2%',
     },
     {
       id: 'log-001-4',
@@ -81,7 +84,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-04T08:15:06Z',
       level: 'info',
       step: 'Extracción',
-      message: 'Datos extraídos: Empleado=María García López, Días=3, Fechas=04-06/09/2026, Motivo=Enfermedad',
+      message: 'Empleado: María García López · Duración: 3 días · Fechas: 04-06/09/2026 · Motivo: Enfermedad',
     },
     {
       id: 'log-001-5',
@@ -89,7 +92,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-04T08:15:07Z',
       level: 'info',
       step: 'Acción',
-      message: 'Derivando a RRHH → Registrar ausencia en sistema de gestión',
+      message: 'Reenviar a prueba3@exervis.com → Para Producción/Delegación',
     },
     {
       id: 'log-001-6',
@@ -97,7 +100,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-04T08:15:08Z',
       level: 'success',
       step: 'Completado',
-      message: 'Procesamiento finalizado. Correo clasificado y acción programada.',
+      message: 'Correo clasificado como Ausencia (Cliente) y reenviado a Producción/Delegación.',
     },
   ],
   'email-002': [
@@ -115,7 +118,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T16:42:03Z',
       level: 'info',
       step: 'Análisis NLP',
-      message: 'Analizando contenido del correo con LLM...',
+      message: 'Analizando contenido del correo con motor de IA...',
     },
     {
       id: 'log-002-3',
@@ -123,7 +126,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T16:42:05Z',
       level: 'success',
       step: 'Clasificación',
-      message: 'Categoría detectada: DOCUMENTACIÓN FINANCIERA | Confianza: 94.8%',
+      message: 'Categoría: JUSTIFICANTE DE COBRO | Confianza: 94.8%',
     },
     {
       id: 'log-002-4',
@@ -131,7 +134,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T16:42:06Z',
       level: 'info',
       step: 'Extracción',
-      message: 'Datos extraídos: Factura=#2024-0847, Importe=4.350,00€, Ref=TRF-2026090301847',
+      message: 'Factura: #2024-0847 · Importe: 4.350,00€ · Ref. bancaria: TRF-2026090301847',
     },
     {
       id: 'log-002-5',
@@ -139,7 +142,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T16:42:07Z',
       level: 'info',
       step: 'Acción',
-      message: 'Derivando a Contabilidad → Conciliar pago con factura pendiente',
+      message: 'Reenviar a prueba3@exervis.com → Para Glenis (conciliación de pago)',
     },
     {
       id: 'log-002-6',
@@ -147,7 +150,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T16:42:08Z',
       level: 'success',
       step: 'Completado',
-      message: 'Procesamiento finalizado. Justificante registrado para conciliación.',
+      message: 'Justificante registrado y reenviado a Glenis para conciliación bancaria.',
     },
   ],
   'email-003': [
@@ -165,7 +168,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T11:20:03Z',
       level: 'info',
       step: 'Análisis NLP',
-      message: 'Analizando contenido del correo con LLM...',
+      message: 'Analizando contenido del correo con motor de IA...',
     },
     {
       id: 'log-003-3',
@@ -173,7 +176,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T11:20:05Z',
       level: 'warning',
       step: 'Clasificación',
-      message: 'Categoría detectada: QUEJA/RECLAMACIÓN | Confianza: 98.1% | ⚠️ Prioridad ALTA',
+      message: 'Categoría: QUEJA POR SUBIDA DE PRECIOS | Confianza: 98.1% · ⚠️ Prioridad ALTA',
     },
     {
       id: 'log-003-4',
@@ -181,7 +184,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T11:20:06Z',
       level: 'info',
       step: 'Extracción',
-      message: 'Datos extraídos: Cliente=Ana Martínez Ruiz, Contrato=MANT-2024-0156, Incremento=8.5% vs 3% pactado',
+      message: 'Cliente: Ana Martínez Ruiz · Contrato: MANT-2024-0156 · Incremento: 8.5% vs 3% pactado · Plazo: 15 días',
     },
     {
       id: 'log-003-5',
@@ -197,7 +200,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-03T11:20:08Z',
       level: 'error',
       step: 'Acción',
-      message: 'ESCALADO URGENTE → Departamento Comercial + Dirección. Plazo límite: 15 días.',
+      message: 'MARCADO PARA REVISIÓN MANUAL — Requiere intervención humana. No automatizable.',
     },
   ],
   'email-004': [
@@ -207,7 +210,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-02T09:05:02Z',
       level: 'info',
       step: 'Recepción',
-      message: 'Nuevo correo recibido de pedro.sanchez@partner.com',
+      message: 'Nuevo correo recibido de pedro.sanchez@cliente.com',
     },
     {
       id: 'log-004-2',
@@ -215,15 +218,15 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-02T09:05:03Z',
       level: 'info',
       step: 'Análisis NLP',
-      message: 'Analizando contenido del correo con LLM...',
+      message: 'Analizando contenido del correo con motor de IA...',
     },
     {
       id: 'log-004-3',
       emailId: 'email-004',
       timestamp: '2026-09-02T09:05:05Z',
-      level: 'success',
+      level: 'warning',
       step: 'Clasificación',
-      message: 'Categoría detectada: SOLICITUD DE INFORMACIÓN | Confianza: 91.3%',
+      message: 'Categoría: INCIDENCIA EN EL SERVICIO | Confianza: 96.4% · ⚠️ Urgente',
     },
     {
       id: 'log-004-4',
@@ -231,7 +234,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-02T09:05:06Z',
       level: 'info',
       step: 'Extracción',
-      message: 'Datos extraídos: Empresa=Innovaciones Digitales S.L., Contacto=Pedro Sánchez (CTO), Interés=Consultoría TD',
+      message: 'Cliente: Pedro Sánchez Díaz · Contrato: SRV-2025-0312 · Ubicación: Centro Norte · Turno afectado: Tarde (14-22h)',
     },
     {
       id: 'log-004-5',
@@ -239,7 +242,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-02T09:05:07Z',
       level: 'info',
       step: 'Acción',
-      message: 'Derivando a Comercial → Preparar propuesta de servicios y agendar reunión',
+      message: 'Reenviar a prueba3@exervis.com → Para Producción/Delegación (incidencia de servicio)',
     },
     {
       id: 'log-004-6',
@@ -247,7 +250,7 @@ export const mockAgentLogs: Record<string, AgentLog[]> = {
       timestamp: '2026-09-02T09:05:08Z',
       level: 'success',
       step: 'Completado',
-      message: 'Procesamiento finalizado. Lead comercial registrado en CRM.',
+      message: 'Incidencia registrada y reenviada a Producción/Delegación para resolución urgente.',
     },
   ],
 };
