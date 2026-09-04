@@ -25,7 +25,7 @@ export default function TopBar({
           </div>
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-white">
-              Exervis Mail Triage
+              Exervis Mail Intelligence
             </h1>
             <p className="text-[11px] text-zinc-500">Gestión inteligente de correo</p>
           </div>

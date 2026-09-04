@@ -4,6 +4,8 @@ import { classifyEmail, LLMClassificationResult } from './aiService';
 import { processAttachments } from './attachmentService';
 import { sendForwardEmail } from './mailService';
 import { isProdModeEnabled, PROD_FORWARD_TARGET } from './appConfig';
+import imaps from 'imap-simple';
+import { simpleParser } from 'mailparser';
 
 // ==========================================
 // Email Service
@@ -60,16 +62,38 @@ export async function getEmails(): Promise<Email[]> {
     const imapUser = process.env.MAIL_USER;
     const imapPassword = process.env.MAIL_PASSWORD;
 
+    // Si no hay credenciales configuradas en Vercel, devolvemos datos mock para que la UI funcione.
     if (!imapUser || !imapPassword) {
-      console.warn('Faltan MAIL_USER o MAIL_PASSWORD en variables de entorno. Devolviendo buzón vacío (limpio).');
-      return [...emailStore]; 
+      console.warn('Credenciales IMAP no configuradas; usando datos de prueba.');
+      // Email de ejemplo para desarrollo/preview
+      const mockEmail: Email = {
+        id: 'MOCK-1',
+        from: 'Demo',
+        fromEmail: 'demo@exervis.com',
+        subject: 'Correo de prueba',
+        body: 'Este es un correo de demostración para la UI.',
+        date: new Date().toISOString(),
+        status: 'pendiente',
+        attachments: [],
+      };
+      return [mockEmail];
     }
 
+
     console.log(`\n[IMAP] Iniciando conexión IMAP para ${imapUser}...`);
-
-    const imaps = (await import('imap-simple')).default;
-    const { simpleParser } = await import('mailparser');
-
+    let imapsModule: any;
+    let simpleParserFunc: any;
+    try {
+      imapsModule = (await import('imap-simple')).default;
+      simpleParserFunc = (await import('mailparser')).simpleParser;
+    } catch (importErr) {
+      console.error('Error loading IMAP libraries', importErr);
+      // Si no se pueden cargar, devolvemos buzón vacío para que la UI no falle.
+      return [...emailStore];
+    }
+    const imaps = imapsModule;
+    const { simpleParser } = { simpleParser: simpleParserFunc };
+    
     const config = {
       imap: {
         user: imapUser,

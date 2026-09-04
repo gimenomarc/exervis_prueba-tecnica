@@ -48,7 +48,7 @@ export default function LoginPage() {
               <img src="/icon.jpg" alt="Exervis Logo" className="h-full w-full object-contain mix-blend-multiply" />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">
-              Exervis Mail Triage
+              Exervis Mail Intelligence
             </h1>
             <p className="mt-1.5 text-center text-sm text-zinc-500">
               Gestión inteligente de correo potenciada por IA
