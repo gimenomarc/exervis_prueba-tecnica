@@ -13,18 +13,22 @@ if (Test-Path $distFolder) {
 }
 New-Item -ItemType Directory -Path $distFolder | Out-Null
 
-# 3. Descargar Node.js Portable (v20)
+# 3. Descargar Node.js Portable
+# IMPORTANTE: pdf-parse/pdfjs-dist necesita APIs de Node relativamente
+# recientes (process.getBuiltinModule, polyfills de DOMMatrix/ImageData).
+# Node 20.11.1 es DEMASIADO ANTIGUO y provoca un 500 en /api/emails y en
+# el procesado. Usamos una version reciente (22 LTS) para evitarlo.
 Write-Host "2. Descargando Node.js portable (para que el CTO no tenga que instalar nada)..."
-$nodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-win-x64.zip"
+$nodeUrl = "https://nodejs.org/dist/v22.11.0/node-v22.11.0-win-x64.zip"
 $nodeZip = "node-portable.zip"
 Invoke-WebRequest -Uri $nodeUrl -OutFile $nodeZip
 Expand-Archive -Path $nodeZip -DestinationPath ".\$distFolder" -Force
-Rename-Item -Path ".\$distFolder\node-v20.11.1-win-x64" -NewName "node"
+Rename-Item -Path ".\$distFolder\node-v22.11.0-win-x64" -NewName "node"
 Remove-Item $nodeZip
 
 # 4. Copiar archivos Standalone de Next.js
 Write-Host "3. Copiando archivos de la aplicación..."
-Copy-Item -Path ".\.next\standalone\*" -Destination ".\$distFolder\" -Recurse
+Copy-Item -Path ".\.next\standalone\*" -Destination ".\$distFolder\" -Recurse -Force
 # Copiar static y public que standalone requiere pero no incluye en la raiz
 $nextDir = ".\$distFolder\.next"
 if (-not (Test-Path $nextDir)) { New-Item -ItemType Directory -Path $nextDir | Out-Null }
@@ -33,6 +37,16 @@ Copy-Item -Path ".\public" -Destination ".\$distFolder\public" -Recurse
 
 # Copiar package.json (por si acaso Next lo busca)
 Copy-Item -Path ".\package.json" -Destination ".\$distFolder\"
+
+# IMPORTANTE: el rastreo automatico de dependencias de Next.js/Turbopack
+# ("output: standalone") no detecta paquetes que se cargan con require/import
+# dinamico (imap, imap-simple, mailparser, openai, nodemailer, mammoth, xlsx...).
+# Sustituimos el node_modules recortado por el node_modules completo del
+# proyecto para garantizar que todo lo que la app necesita en tiempo de
+# ejecucion esta presente. Es mas grande, pero evita 500 en produccion.
+Write-Host "3b. Sustituyendo node_modules recortado por el completo (evita fallos en runtime)..."
+Remove-Item -Path ".\$distFolder\node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -Path ".\node_modules" -Destination ".\$distFolder\node_modules" -Recurse -Force
 
 # Copiar variables de entorno (API keys de OpenAI, etc)
 if (Test-Path ".\.env") {
