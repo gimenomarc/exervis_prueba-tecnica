@@ -1,6 +1,6 @@
 'use client';
 
-import { Play, Loader2, Activity, ShieldAlert } from 'lucide-react';
+import { Play, Loader2, Activity, ShieldAlert, BookOpen } from 'lucide-react';
 
 interface TopBarProps {
   onManualProcess: () => void;
@@ -33,6 +33,17 @@ export default function TopBar({
 
         {/* Actions */}
         <div className="flex items-center gap-3">
+          {/* Manual de uso */}
+          <button
+            id="btn-manual-de-uso"
+            onClick={() => window.open('/manual-de-uso.html', '_blank', 'noopener,noreferrer')}
+            title="Abrir el manual de uso en una pestaña nueva"
+            className="group flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-xs font-medium text-zinc-400 transition-all duration-300 hover:border-white/[0.15] hover:bg-white/[0.06] hover:text-white"
+          >
+            <BookOpen className="h-3.5 w-3.5 transition-transform duration-300 group-hover:scale-110" />
+            <span>Manual de uso</span>
+          </button>
+
           {/* Envío Real de Correos Toggle */}
           <button
             id="btn-prod-mode"

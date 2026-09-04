@@ -69,9 +69,11 @@ Set-Content -Path ".\$distFolder\iniciar_prueba.bat" -Value $batContent
 
 # 5b. Copiar el manual de uso (HTML autocontenido, sin depender de nada)
 # junto al .bat, para que quien reciba el zip lo pueda abrir directamente
-# haciendo doble clic (se abre en su navegador por defecto).
+# haciendo doble clic (se abre en su navegador por defecto). Vive en
+# public/ (unica fuente, tambien lo sirve la propia app via el boton
+# "Manual de uso" del dashboard) y aqui se copia con el nombre bonito.
 Write-Host "4b. Copiando el manual de uso..."
-Copy-Item -Path ".\MANUAL DE USO.html" -Destination ".\$distFolder\MANUAL DE USO.html" -Force
+Copy-Item -Path ".\public\manual-de-uso.html" -Destination ".\$distFolder\MANUAL DE USO.html" -Force
 
 # 6. Comprimir todo en un ZIP listo para enviar
 Write-Host "5. Comprimiendo la aplicacion en exervis-prueba-tecnica.zip..."
