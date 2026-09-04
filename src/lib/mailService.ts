@@ -8,18 +8,28 @@ import nodemailer, { Transporter } from 'nodemailer';
 // ==========================================
 
 let transporter: Transporter | null = null;
+let currentConfigUser: string | null = null;
 
-function getTransporter(): Transporter {
-  const user = process.env.MAIL_USER;
-  const password = process.env.MAIL_PASSWORD;
+async function getTransporter(): Promise<{ transport: Transporter, user: string }> {
+  const { getCredentials } = await import('@/app/actions/auth');
+  const credentials = await getCredentials();
+
+  let user = process.env.MAIL_USER || '';
+  let password = process.env.MAIL_PASSWORD || '';
+
+  if (credentials) {
+    user = credentials.email;
+    password = credentials.password;
+  }
 
   if (!user || !password) {
     throw new Error(
-      'MAIL_USER / MAIL_PASSWORD no configuradas. Añádelas en .env.local para poder enviar correos.'
+      'No hay credenciales de Outlook en sesión ni en .env.local para poder enviar correos.'
     );
   }
 
-  if (!transporter) {
+  // Recrear el transporter si el usuario cambió
+  if (!transporter || currentConfigUser !== user) {
     const service = (process.env.MAILING_SERVICE || 'outlook').toLowerCase();
     const isOutlook = ['outlook', 'outlook365', 'office365', 'hotmail'].includes(service);
 
@@ -36,9 +46,10 @@ function getTransporter(): Transporter {
             auth: { user, pass: password },
           }
     );
+    currentConfigUser = user;
   }
 
-  return transporter;
+  return { transport: transporter, user };
 }
 
 export interface ForwardEmailInput {
@@ -60,10 +71,10 @@ export interface ForwardEmailInput {
  * original para contexto.
  */
 export async function sendForwardEmail({ to, internalNote, originalEmail }: ForwardEmailInput): Promise<void> {
-  const transport = getTransporter();
+  const { transport, user } = await getTransporter();
 
   await transport.sendMail({
-    from: process.env.MAIL_USER,
+    from: user,
     to,
     subject: `Fwd: ${originalEmail.subject}`,
     text: [

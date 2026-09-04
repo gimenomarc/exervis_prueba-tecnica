@@ -1,30 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Mail, ArrowRight, Shield, Zap, Bot, Loader2, Sparkles } from 'lucide-react';
+import { Mail, ArrowRight, Shield, Zap, Bot, Loader2, Sparkles, KeyRound, AlertTriangle } from 'lucide-react';
+import { login } from './actions/auth';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [isConnecting, setIsConnecting] = useState(false);
-
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    // Simulamos un delay de conexión OAuth
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    router.push('/dashboard');
-  };
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden">
       {/* Background effects */}
       <div className="pointer-events-none absolute inset-0">
-        {/* Gradient orbs */}
         <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-violet-600/10 blur-[128px]" />
         <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-indigo-600/10 blur-[128px]" />
         <div className="absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/5 blur-[96px]" />
-
-        {/* Grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -40,8 +29,8 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-white/[0.08] bg-[#0c0c14]/80 p-8 shadow-2xl shadow-black/40 backdrop-blur-xl">
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center">
-            <div className="animated-gradient mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 via-indigo-500 to-purple-600 shadow-xl shadow-violet-500/30">
-              <Mail className="h-8 w-8 text-white" />
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white p-2 shadow-xl shadow-white/10">
+              <img src="/icon.jpg" alt="Exervis Logo" className="h-full w-full object-contain mix-blend-multiply" />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">
               Exervis Mail Triage
@@ -51,64 +40,74 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Features */}
-          <div className="mb-8 space-y-3">
-            {[
-              {
-                icon: Bot,
-                title: 'Clasificación automática',
-                desc: 'IA que categoriza tus correos al instante',
-              },
-              {
-                icon: Zap,
-                title: 'Procesamiento en tiempo real',
-                desc: 'Webhooks y triggers automáticos',
-              },
-              {
-                icon: Shield,
-                title: 'Trazabilidad completa',
-                desc: 'Logs detallados de cada decisión del agente',
-              },
-            ].map((feature) => (
-              <div
-                key={feature.title}
-                className="group flex items-start gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3 transition-colors duration-200 hover:border-white/[0.08] hover:bg-white/[0.04]"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
-                  <feature.icon className="h-4 w-4 text-violet-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-zinc-200">{feature.title}</p>
-                  <p className="text-xs text-zinc-500">{feature.desc}</p>
-                </div>
+          <div className="mb-6 rounded-lg bg-orange-500/10 p-4 border border-orange-500/20">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-orange-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-orange-200/80">
+                <p className="font-semibold text-orange-300 mb-1">Aviso importante (Seguridad de Microsoft)</p>
+                <p>Si usas Office 365 o Outlook, es muy probable que tu contraseña normal dé error porque Microsoft bloquea la autenticación básica. Necesitarás generar una <strong>Contraseña de aplicación (App Password)</strong> desde los ajustes de seguridad de tu cuenta Microsoft.</p>
               </div>
-            ))}
+            </div>
           </div>
 
-          {/* Connect Button */}
-          <button
-            id="btn-connect"
-            onClick={handleConnect}
-            disabled={isConnecting}
-            className="group relative flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-violet-500/40 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isConnecting ? (
-              <>
-                <Loader2 className="h-4.5 w-4.5 animate-spin" />
-                <span>Conectando...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4.5 w-4.5" />
-                <span>Conectar cuenta de Exervis</span>
-                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-              </>
-            )}
-          </button>
+          <form action={login} onSubmit={() => setIsConnecting(true)} className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-300" htmlFor="email">
+                Correo de Outlook / Exervis
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  placeholder="tu.nombre@exervis.com"
+                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-10 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-zinc-300" htmlFor="password">
+                Contraseña de Aplicación
+              </label>
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  required
+                  placeholder="••••••••••••••••"
+                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-10 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isConnecting}
+              className="group relative mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-violet-500/40 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="h-4.5 w-4.5 animate-spin" />
+                  <span>Conectando e iniciando sesión...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4.5 w-4.5" />
+                  <span>Conectar cuenta de Correo</span>
+                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </>
+              )}
+            </button>
+          </form>
 
           {/* Footer note */}
-          <p className="mt-4 text-center text-[11px] text-zinc-600">
-            Conexión segura · No almacenamos credenciales · Solo lectura
+          <p className="mt-6 text-center text-[11px] text-zinc-600">
+            Las credenciales solo se usan temporalmente en memoria para esta prueba y no se guardan en base de datos.
           </p>
         </div>
       </div>

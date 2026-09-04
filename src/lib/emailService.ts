@@ -19,16 +19,18 @@ import { sendForwardEmail } from './mailService';
 // proceso de Next.js esté arriba. Se reinicia al reiniciar el server.
 // ==========================================
 
-let emailStore: Email[] = [...mockEmails];
+let emailStore: Email[] = [];
 
-// Solo se heredan logs mock para correos que YA arrancan 'procesado' en los
-// datos de ejemplo (p.ej. email-004). Un correo 'pendiente' no debe mostrar
-// historial de gestión hasta que realmente se procese.
-const logStore: Record<string, AgentLog[]> = Object.fromEntries(
-  Object.entries(mockAgentLogs)
-    .filter(([id]) => mockEmails.find((e) => e.id === id)?.status === 'procesado')
-    .map(([id, logs]) => [id, [...logs]])
-);
+const logStore: Record<string, AgentLog[]> = {};
+
+export function generateMockData() {
+  emailStore = [...mockEmails];
+  for (const [id, logs] of Object.entries(mockAgentLogs)) {
+    if (mockEmails.find((e) => e.id === id)?.status === 'procesado') {
+      logStore[id] = [...logs];
+    }
+  }
+}
 
 let logCounter = 0;
 function nextLogId(emailId: string): string {
@@ -60,14 +62,100 @@ const simulateDelay = (ms: number = 500): Promise<void> =>
 
 /**
  * Obtiene todos los correos electrónicos.
- *
- * 🔌 INYECCIÓN FUTURA:
- * Aquí se conectará con el proveedor de correo (IMAP/API) para obtener
- * los correos reales de la bandeja de entrada de prueba@exervis.com.
+ * Se conecta a Outlook vía IMAP para recuperar los últimos correos no leídos.
  */
 export async function getEmails(): Promise<Email[]> {
-  await simulateDelay(300);
-  return [...emailStore];
+  try {
+    const { getCredentials } = await import('@/app/actions/auth');
+    const credentials = await getCredentials();
+
+    if (!credentials) {
+      console.warn('No hay credenciales de Outlook en sesión. Devolviendo buzón vacío (limpio).');
+      return [...emailStore]; 
+    }
+
+    console.log(`\n[IMAP] Iniciando conexión IMAP para ${credentials.email}...`);
+
+    const imaps = (await import('imap-simple')).default;
+    const { simpleParser } = await import('mailparser');
+
+    const config = {
+      imap: {
+        user: credentials.email,
+        password: credentials.password,
+        host: 'outlook.office365.com',
+        port: 993,
+        tls: true,
+        authTimeout: 10000,
+        tlsOptions: { rejectUnauthorized: false }
+      }
+    };
+
+    console.log('[IMAP] Conectando a outlook.office365.com:993...');
+    const connection = await imaps.connect(config);
+    console.log('[IMAP] Conexión IMAP establecida con éxito!');
+    
+    console.log('[IMAP] Abriendo bandeja INBOX...');
+    await connection.openBox('INBOX');
+
+    const searchCriteria = ['UNSEEN']; 
+    const fetchOptions = { bodies: ['HEADER', 'TEXT', ''], struct: true, markSeen: false };
+
+    console.log('[IMAP] Buscando correos UNSEEN...');
+    const messages = await connection.search(searchCriteria, fetchOptions);
+    console.log(`[IMAP] Se encontraron ${messages.length} correos no leídos.`);
+    
+    const recentMessages = messages.slice(-10).reverse();
+
+    const newEmails: Email[] = [];
+
+    for (const item of recentMessages) {
+      const all = item.parts.find((part) => part.which === '');
+      const id = item.attributes.uid;
+      const idHeader = 'IMAP-UID-' + id;
+
+      if (!all) continue;
+
+      const mail = await simpleParser(all.body);
+      
+      const fromEmail = mail.from?.value[0]?.address || 'desconocido@correo.com';
+      const fromName = mail.from?.value[0]?.name || fromEmail;
+      
+      const attachments = mail.attachments?.map((att) => ({
+        filename: att.filename || 'adjunto',
+        mimeType: att.contentType,
+        content: att.content.toString('base64'),
+        size: att.size
+      })) || [];
+
+      newEmails.push({
+        id: idHeader,
+        from: fromName,
+        fromEmail: fromEmail,
+        subject: mail.subject || 'Sin asunto',
+        body: mail.text || mail.html || '',
+        date: mail.date ? mail.date.toISOString() : new Date().toISOString(),
+        status: 'pendiente',
+        attachments: attachments
+      });
+    }
+
+    connection.end();
+    console.log('[IMAP] Conexión finalizada y correos mapeados.');
+
+    for (const newEmail of newEmails) {
+      if (!emailStore.find((e) => e.id === newEmail.id)) {
+        emailStore.unshift(newEmail);
+      }
+    }
+
+    return emailStore.filter(e => e.status === 'pendiente');
+  } catch (error) {
+    console.error('\n[IMAP ERROR CATASTRÓFICO] Ha fallado la conexión IMAP!');
+    console.error('[IMAP ERROR DETALLE]:', error);
+    console.error('[IMAP ERROR CONSEJO]: Si el error es de autenticación, recuerda que para Office 365 / Outlook necesitas usar una "Contraseña de aplicación" en vez de tu contraseña normal.\n');
+    return [...emailStore];
+  }
 }
 
 /**

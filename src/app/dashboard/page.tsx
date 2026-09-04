@@ -115,12 +115,32 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Handle mock generation
+  const handleGenerateMock = useCallback(async () => {
+    try {
+      setIsLoadingEmails(true);
+      await fetch('/api/emails/mock', { method: 'POST' });
+      const res = await fetch('/api/emails');
+      const data = await res.json();
+      if (data.success) {
+        setEmails(data.emails);
+        setSelectedEmail(null);
+        setSelectedLogs([]);
+      }
+    } catch (error) {
+      console.error('Error generating mock data:', error);
+    } finally {
+      setIsLoadingEmails(false);
+    }
+  }, []);
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Top Bar */}
       <TopBar
         onAutoTrigger={handleAutoTrigger}
         onManualProcess={handleManualProcess}
+        onGenerateMock={handleGenerateMock}
         isProcessing={isProcessing}
       />
 

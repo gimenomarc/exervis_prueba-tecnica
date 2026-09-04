@@ -1,16 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Zap, Play, Loader2, Activity } from 'lucide-react';
+import { Mail, Zap, Play, Loader2, Activity, DatabaseBackup } from 'lucide-react';
 
 interface TopBarProps {
   onAutoTrigger: () => void;
   onManualProcess: () => void;
+  onGenerateMock: () => void;
   isProcessing: boolean;
 }
 
-export default function TopBar({ onAutoTrigger, onManualProcess, isProcessing }: TopBarProps) {
+export default function TopBar({ onAutoTrigger, onManualProcess, onGenerateMock, isProcessing }: TopBarProps) {
   const [autoEnabled, setAutoEnabled] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleToggle = () => {
     setAutoEnabled(!autoEnabled);
@@ -19,13 +21,19 @@ export default function TopBar({ onAutoTrigger, onManualProcess, isProcessing }:
     }
   };
 
+  const handleMock = async () => {
+    setIsGenerating(true);
+    await onGenerateMock();
+    setIsGenerating(false);
+  };
+
   return (
     <header className="border-b border-white/[0.06] bg-[#0a0a0f]/80 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-6">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/25">
-            <Mail className="h-4.5 w-4.5 text-white" />
+          <div className="flex h-10 w-10 overflow-hidden items-center justify-center rounded-lg bg-white p-1 shadow-lg shadow-white/10">
+            <img src="/icon.jpg" alt="Exervis Logo" className="h-full w-full object-contain mix-blend-multiply" />
           </div>
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-white">
@@ -37,6 +45,16 @@ export default function TopBar({ onAutoTrigger, onManualProcess, isProcessing }:
 
         {/* Actions */}
         <div className="flex items-center gap-3">
+          {/* Mock Button */}
+          <button
+            onClick={handleMock}
+            disabled={isGenerating || isProcessing}
+            className="group flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-zinc-400 transition-all duration-300 hover:border-white/[0.15] hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+          >
+            {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <DatabaseBackup className="h-3.5 w-3.5" />}
+            <span>Mock Test</span>
+          </button>
+          
           {/* Status indicator */}
           <div className="mr-2 flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-1.5">
             <Activity className={`h-3.5 w-3.5 ${autoEnabled ? 'text-emerald-400' : 'text-zinc-600'}`} />
