@@ -4,7 +4,7 @@ import { classifyEmail, LLMClassificationResult } from './aiService';
 import { processAttachments } from './attachmentService';
 import { sendForwardEmail } from './mailService';
 import { isProdModeEnabled, PROD_FORWARD_TARGET } from './appConfig';
-import imaps from 'imap-simple';
+
 import { simpleParser } from 'mailparser';
 
 // ==========================================
@@ -126,7 +126,7 @@ export async function getEmails(): Promise<Email[]> {
     const newEmails: Email[] = [];
 
     for (const item of recentMessages) {
-      const all = item.parts.find((part) => part.which === '');
+      const all = item.parts.find((part: any) => part.which === '');
       const id = item.attributes.uid;
       const idHeader = 'IMAP-UID-' + id;
 
@@ -137,7 +137,7 @@ export async function getEmails(): Promise<Email[]> {
       const fromEmail = mail.from?.value[0]?.address || 'desconocido@correo.com';
       const fromName = mail.from?.value[0]?.name || fromEmail;
       
-      const attachments = mail.attachments?.map((att) => ({
+      const attachments = mail.attachments?.map((att: any) => ({
         filename: att.filename || 'adjunto',
         mimeType: att.contentType,
         content: att.content.toString('base64'),
