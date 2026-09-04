@@ -39,7 +39,7 @@ const avatarColors = [
   'from-emerald-500 to-teal-600',
 ];
 
-type FilterType = 'all' | 'pendiente' | 'completado';
+type FilterType = 'all' | 'pendiente' | 'procesado';
 
 export default function EmailList({ emails, selectedId, onSelect }: EmailListProps) {
   const [filter, setFilter] = useState<FilterType>('all');
@@ -85,9 +85,9 @@ export default function EmailList({ emails, selectedId, onSelect }: EmailListPro
             Pendientes
           </button>
           <button
-            onClick={() => setFilter('completado')}
+            onClick={() => setFilter('procesado')}
             className={`flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all ${
-              filter === 'completado'
+              filter === 'procesado'
                 ? 'bg-emerald-500/20 text-emerald-300 shadow-sm'
                 : 'text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300'
             }`}

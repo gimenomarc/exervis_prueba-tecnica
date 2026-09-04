@@ -1,9 +1,9 @@
 import { Email, AgentLog, TriggerResponse, ProcessResult, LogLevel } from './types';
-import { mockEmails, mockAgentLogs } from './mock-data';
 import { determineAction } from './businessRules';
 import { classifyEmail, LLMClassificationResult } from './aiService';
 import { processAttachments } from './attachmentService';
 import { sendForwardEmail } from './mailService';
+import { isProdModeEnabled, PROD_FORWARD_TARGET } from './appConfig';
 
 // ==========================================
 // Email Service
@@ -22,15 +22,6 @@ import { sendForwardEmail } from './mailService';
 let emailStore: Email[] = [];
 
 const logStore: Record<string, AgentLog[]> = {};
-
-export function generateMockData() {
-  emailStore = [...mockEmails];
-  for (const [id, logs] of Object.entries(mockAgentLogs)) {
-    if (mockEmails.find((e) => e.id === id)?.status === 'procesado') {
-      logStore[id] = [...logs];
-    }
-  }
-}
 
 let logCounter = 0;
 function nextLogId(emailId: string): string {
@@ -150,7 +141,10 @@ export async function getEmails(): Promise<Email[]> {
       }
     }
 
-    return emailStore.filter(e => e.status === 'pendiente');
+    // Devuelve TODO el buzón (pendientes, procesados y con error), no solo
+    // los pendientes — de lo contrario un correo ya procesado desaparece
+    // de la lista en el siguiente refresco/polling.
+    return [...emailStore];
   } catch (error) {
     console.error('\n[IMAP ERROR CATASTRÓFICO] Ha fallado la conexión IMAP!');
     console.error('[IMAP ERROR DETALLE]:', error);
@@ -245,25 +239,37 @@ export async function processEmail(emailId: string): Promise<ProcessResult | nul
     let finalStatus: Email['status'] = 'procesado';
 
     if (action.type === 'forward') {
+      const prodMode = isProdModeEnabled();
       try {
-        // [SIMULACIÓN] - Comentado para la demo al CTO para que no envíe correos reales
-        /*
-        await sendForwardEmail({
-          to: action.target,
-          internalNote: action.internalNote,
-          originalEmail: {
-            from: email.from,
-            fromEmail: email.fromEmail,
-            subject: email.subject,
-            body: email.body,
-            date: email.date,
-          },
-        });
-        */
-        pushLog(emailId, 'success', 'Reenvío', `[SIMULACIÓN] Correo reenviado por email a ${action.target}.`);
+        if (prodMode) {
+          await sendForwardEmail({
+            to: PROD_FORWARD_TARGET,
+            internalNote: action.internalNote,
+            originalEmail: {
+              from: email.from,
+              fromEmail: email.fromEmail,
+              subject: email.subject,
+              body: email.body,
+              date: email.date,
+            },
+          });
+          pushLog(
+            emailId,
+            'success',
+            'Reenvío',
+            `Correo reenviado de verdad a ${PROD_FORWARD_TARGET} (Prod Mode activo · ${action.internalNote}).`
+          );
+        } else {
+          pushLog(
+            emailId,
+            'success',
+            'Reenvío',
+            `[SIMULACIÓN] Prod Mode inactivo — no se ha enviado ningún correo real (destino en producción: ${PROD_FORWARD_TARGET}).`
+          );
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Error desconocido al reenviar.';
-        pushLog(emailId, 'error', 'Reenvío', `Fallo al reenviar a ${action.target}: ${message}`);
+        pushLog(emailId, 'error', 'Reenvío', `Fallo al reenviar a ${PROD_FORWARD_TARGET}: ${message}`);
         finalStatus = 'error';
       }
     }
@@ -322,36 +328,5 @@ export async function processAllEmails(): Promise<TriggerResponse> {
         : `Se han procesado ${processedEmails.length} correos pendientes.`,
     processedCount: processedEmails.length,
     emails: processedEmails,
-  };
-}
-
-/**
- * Simula la recepción de un nuevo correo vía webhook: procesa el primer
- * correo pendiente encontrado.
- *
- * 🔌 INYECCIÓN FUTURA: Webhook Handler
- * Este endpoint será llamado por el proveedor de correo cuando llegue
- * un nuevo mensaje real.
- */
-export async function handleAutoTrigger(): Promise<TriggerResponse> {
-  const firstPending = emailStore.find((e) => e.status === 'pendiente');
-  if (!firstPending) {
-    return {
-      success: true,
-      message: 'No hay correos pendientes para procesar.',
-      processedCount: 0,
-    };
-  }
-
-  const result = await processEmail(firstPending.id);
-
-  return {
-    success: true,
-    message: result
-      ? `Correo "${firstPending.subject}" procesado automáticamente.`
-      : 'No se pudo procesar el correo.',
-    processedCount: result ? 1 : 0,
-    emails: result ? [result.email] : [],
-    logs: result?.logs ?? [],
   };
 }

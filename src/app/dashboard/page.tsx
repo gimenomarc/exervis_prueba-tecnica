@@ -19,6 +19,21 @@ export default function DashboardPage() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [isProcessingOne, setIsProcessingOne] = useState(false);
   const [popupEmail, setPopupEmail] = useState<Email | null>(null);
+  const [prodModeEnabled, setProdModeEnabled] = useState(false);
+
+  // Fetch current Prod Mode state on mount
+  useEffect(() => {
+    async function fetchProdMode() {
+      try {
+        const res = await fetch('/api/config/prod-mode');
+        const data = await res.json();
+        if (data.success) setProdModeEnabled(data.enabled);
+      } catch (error) {
+        console.error('Error fetching prod mode state:', error);
+      }
+    }
+    fetchProdMode();
+  }, []);
 
   // Fetch emails logic
   const fetchEmails = useCallback(async (showLoader = true) => {
@@ -36,15 +51,41 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Procesa todos los correos pendientes. `showSpinner` controla si se
+  // usa para el botón manual (con spinner) o el ciclo automático (silencioso).
+  const processPending = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setIsProcessing(true);
+    try {
+      const res = await fetch('/api/trigger/manual', { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.emails) {
+        setEmails((prev) =>
+          prev.map((e) => {
+            const updated = data.emails.find((ue: Email) => ue.id === e.id);
+            return updated || e;
+          })
+        );
+        if (data.emails.length > 0) {
+          setPopupEmail(data.emails[data.emails.length - 1]);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing pending emails:', error);
+    } finally {
+      if (showSpinner) setIsProcessing(false);
+    }
+  }, []);
+
   // Initial fetch on mount
   useEffect(() => {
     fetchEmails(true);
   }, [fetchEmails]);
 
-  // Background polling every 15 seconds
+  // Auto: cada 15 segundos refresca la bandeja (trae correos nuevos por
+  // IMAP). El procesado es siempre manual — no se dispara aquí.
   useEffect(() => {
     const intervalId = setInterval(() => {
-      fetchEmails(false); // false so it doesn't show the loading spinner
+      fetchEmails(false); // sin spinner
     }, 15000);
 
     return () => clearInterval(intervalId);
@@ -73,27 +114,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Handle auto-trigger
-  const handleAutoTrigger = useCallback(async () => {
-    try {
-      const res = await fetch('/api/trigger/auto', { method: 'POST' });
-      const data = await res.json();
-      if (data.success && data.emails) {
-        setEmails((prev) =>
-          prev.map((e) => {
-            const updated = data.emails.find((ue: Email) => ue.id === e.id);
-            return updated || e;
-          })
-        );
-        if (data.emails.length > 0) {
-          setPopupEmail(data.emails[0]);
-        }
-      }
-    } catch (error) {
-      console.error('Error in auto trigger:', error);
-    }
-  }, []);
-
   // Handle processing a single, specific email on demand
   const handleProcessOne = useCallback(async (emailId: string) => {
     setIsProcessingOne(true);
@@ -113,57 +133,32 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Handle manual process
-  const handleManualProcess = useCallback(async () => {
-    setIsProcessing(true);
+  // Handle Prod Mode toggle
+  const handleToggleProdMode = useCallback(async (enabled: boolean) => {
+    const previous = prodModeEnabled;
+    setProdModeEnabled(enabled); // optimistic
     try {
-      const res = await fetch('/api/trigger/manual', { method: 'POST' });
+      const res = await fetch('/api/config/prod-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
       const data = await res.json();
-      if (data.success && data.emails) {
-        setEmails((prev) =>
-          prev.map((e) => {
-            const updated = data.emails.find((ue: Email) => ue.id === e.id);
-            return updated || e;
-          })
-        );
-        if (data.emails.length > 0) {
-          setPopupEmail(data.emails[data.emails.length - 1]);
-        }
-      }
+      if (!data.success) setProdModeEnabled(previous);
     } catch (error) {
-      console.error('Error in manual process:', error);
-    } finally {
-      setIsProcessing(false);
+      console.error('Error toggling prod mode:', error);
+      setProdModeEnabled(previous);
     }
-  }, []);
-
-  // Handle mock generation
-  const handleGenerateMock = useCallback(async () => {
-    try {
-      setIsLoadingEmails(true);
-      await fetch('/api/emails/mock', { method: 'POST' });
-      const res = await fetch('/api/emails');
-      const data = await res.json();
-      if (data.success) {
-        setEmails(data.emails);
-        setSelectedEmail(null);
-        setSelectedLogs([]);
-      }
-    } catch (error) {
-      console.error('Error generating mock data:', error);
-    } finally {
-      setIsLoadingEmails(false);
-    }
-  }, []);
+  }, [prodModeEnabled]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Top Bar */}
       <TopBar
-        onAutoTrigger={handleAutoTrigger}
-        onManualProcess={handleManualProcess}
-        onGenerateMock={handleGenerateMock}
+        onManualProcess={() => processPending(true)}
+        onToggleProdMode={handleToggleProdMode}
         isProcessing={isProcessing}
+        prodModeEnabled={prodModeEnabled}
       />
 
       {/* Main Content - Split View */}

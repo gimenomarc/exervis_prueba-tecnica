@@ -35,10 +35,14 @@ export const categoryLabels: Record<string, string> = {
 
 export default function EmailViewer({ email, onProcess, isProcessing }: EmailViewerProps) {
   const [showSummaryPopup, setShowSummaryPopup] = useState(false);
+  const [lastEmailId, setLastEmailId] = useState<string | undefined>(undefined);
 
-  // Cierra el popup si cambiamos de correo
-  if (email && showSummaryPopup && email.id !== showSummaryPopup) {
-    // hack para que no se quede abierto al cambiar, mejor resuelto en un useEffect o con key
+  // Cierra el popup del detalle de decisión al cambiar de correo
+  // (ajuste de estado durante el render, patrón recomendado por React
+  // en vez de un useEffect con setState síncrono).
+  if (email?.id !== lastEmailId) {
+    setLastEmailId(email?.id);
+    setShowSummaryPopup(false);
   }
 
   if (!email) {
