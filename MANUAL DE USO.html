@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de uso — Exervis Mail Triage</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    color-scheme: light dark;
+    --paper:#faf9fc;
+    --paper-raised:#ffffff;
+    --ink:#17151f;
+    --ink-soft:#56536b;
+    --ink-faint:#8b87a0;
+    --line:#e4e1ec;
+    --line-soft:#eeecf4;
+    --accent:#6d4ff5;
+    --accent-ink:#4a2fd0;
+    --accent-soft:#efeafe;
+    --success:#0f9d63;
+    --success-soft:#e3f7ec;
+    --danger:#d33a4b;
+    --danger-soft:#fbe8ea;
+    --warning:#a8670a;
+    --warning-soft:#fbf0dd;
+    --shadow: 0 1px 2px rgba(23,21,31,.04), 0 8px 24px -12px rgba(23,21,31,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#121018;
+      --paper-raised:#1b1826;
+      --ink:#f1effa;
+      --ink-soft:#aca8c6;
+      --ink-faint:#716d8a;
+      --line:#2e2a40;
+      --line-soft:#251f36;
+      --accent:#a68fff;
+      --accent-ink:#cabdff;
+      --accent-soft:#241e3d;
+      --success:#3ddb98;
+      --success-soft:#0f2c22;
+      --danger:#f88b95;
+      --danger-soft:#3a1820;
+      --warning:#f2bd5a;
+      --warning-soft:#332405;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Public Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', Georgia, serif;
+    font-weight:600;
+    text-wrap:balance;
+    color:var(--ink);
+    margin:0;
+  }
+  code, .mono{
+    font-family:'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    font-size:.85em;
+  }
+  code{
+    background:var(--line-soft);
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:.1em .4em;
+    color:var(--accent-ink);
+  }
+  a{ color:var(--accent-ink); }
+
+  /* ---------- layout ---------- */
+  .shell{
+    max-width:1180px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:240px minmax(0,1fr);
+    gap:56px;
+    padding:0 32px 96px;
+  }
+  @media (max-width:880px){
+    .shell{ grid-template-columns:1fr; padding:0 20px 64px; }
+  }
+
+  /* ---------- header / hero ---------- */
+  .hero{
+    padding:56px 32px 40px;
+    border-bottom:1px solid var(--line);
+    background:
+      radial-gradient(560px 200px at 12% -20%, var(--accent-soft), transparent 65%);
+  }
+  .hero-inner{
+    max-width:1180px;
+    margin:0 auto;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--accent-ink);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:7px; height:7px; border-radius:50%;
+    background:var(--success);
+    box-shadow:0 0 0 3px var(--success-soft);
+  }
+  .hero h1{
+    font-size:clamp(30px,4vw,42px);
+    line-height:1.08;
+    max-width:16ch;
+  }
+  .hero p{
+    margin:14px 0 0;
+    max-width:52ch;
+    color:var(--ink-soft);
+    font-size:16.5px;
+  }
+  .hero-meta{
+    display:flex;
+    gap:28px;
+    font-size:13px;
+    color:var(--ink-faint);
+  }
+  .hero-meta strong{
+    display:block;
+    color:var(--ink);
+    font-size:14px;
+    font-weight:600;
+  }
+
+  /* ---------- nav ---------- */
+  nav.toc{
+    position:sticky;
+    top:32px;
+    align-self:start;
+    padding-top:40px;
+  }
+  nav.toc ol{
+    list-style:none;
+    margin:0; padding:0;
+    border-left:1px solid var(--line);
+  }
+  nav.toc li{ margin:0; }
+  nav.toc a{
+    display:block;
+    padding:8px 0 8px 16px;
+    margin-left:-1px;
+    border-left:2px solid transparent;
+    color:var(--ink-soft);
+    text-decoration:none;
+    font-size:13.5px;
+    font-weight:500;
+    transition:color .15s, border-color .15s;
+  }
+  nav.toc a:hover{ color:var(--ink); }
+  nav.toc a.active{
+    color:var(--accent-ink);
+    border-left-color:var(--accent);
+    font-weight:600;
+  }
+  nav.toc .toc-num{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--ink-faint);
+    font-size:11.5px;
+    margin-right:7px;
+  }
+
+  /* ---------- main content ---------- */
+  main{ min-width:0; padding-top:40px; }
+  section{
+    padding:44px 0;
+    border-bottom:1px solid var(--line-soft);
+  }
+  section:last-child{ border-bottom:none; }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:18px;
+  }
+  .section-head .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--accent-ink);
+    background:var(--accent-soft);
+    border-radius:6px;
+    padding:3px 8px;
+    font-weight:600;
+  }
+  section h2{ font-size:24px; }
+  section h3{
+    font-size:15px;
+    font-weight:700;
+    font-family:'Public Sans', sans-serif;
+    color:var(--ink);
+    margin:28px 0 10px;
+  }
+  section p{ color:var(--ink-soft); margin:0 0 14px; max-width:66ch; }
+  section ul, section ol{ color:var(--ink-soft); max-width:66ch; padding-left:22px; margin:0 0 14px; }
+  section li{ margin-bottom:7px; }
+  section li strong{ color:var(--ink); }
+  .lede{ font-size:16.5px; color:var(--ink-soft); max-width:62ch; }
+
+  /* ---------- cards / grids ---------- */
+  .card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+    box-shadow:var(--shadow);
+  }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0; }
+  @media (max-width:640px){ .grid-2{ grid-template-columns:1fr; } }
+
+  /* toggle-state cards for Envío Real */
+  .state-card{
+    border-radius:12px;
+    padding:20px 22px;
+    border:1px solid;
+  }
+  .state-card.off{ background:var(--danger-soft); border-color:color-mix(in srgb, var(--danger) 35%, transparent); }
+  .state-card.on{ background:var(--success-soft); border-color:color-mix(in srgb, var(--success) 35%, transparent); }
+  .state-card .state-tag{
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; font-weight:600; letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:4px 10px; border-radius:100px;
+    margin-bottom:12px;
+  }
+  .state-card.off .state-tag{ background:var(--danger); color:white; }
+  .state-card.on .state-tag{ background:var(--success); color:white; }
+  .state-card .dot{ width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .state-card p{ color:var(--ink); font-size:14.5px; margin:0; }
+  .state-card p + p{ margin-top:8px; }
+
+  /* steps (genuine sequence) */
+  .steps{ counter-reset:step; margin:20px 0; }
+  .step{
+    counter-increment:step;
+    display:grid;
+    grid-template-columns:34px 1fr;
+    gap:14px;
+    position:relative;
+    padding-bottom:20px;
+  }
+  .step:last-child{ padding-bottom:0; }
+  .step::before{
+    content:counter(step);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:13px;
+    width:34px; height:34px;
+    border-radius:50%;
+    background:var(--accent-soft);
+    color:var(--accent-ink);
+    display:flex; align-items:center; justify-content:center;
+    z-index:1;
+  }
+  .step::after{
+    content:"";
+    position:absolute;
+    left:17px; top:34px; bottom:0;
+    width:1px;
+    background:var(--line);
+  }
+  .step:last-child::after{ display:none; }
+  .step .step-body{ padding-top:5px; }
+  .step .step-body strong{ display:block; color:var(--ink); font-size:14.5px; margin-bottom:3px; }
+  .step .step-body span{ color:var(--ink-soft); font-size:14px; }
+  .step .step-body .tag-opt{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-faint); margin-left:8px;
+  }
+
+  /* tables */
+  .table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:12px; margin:18px 0; }
+  table{ width:100%; border-collapse:collapse; font-size:14px; min-width:560px; }
+  thead th{
+    text-align:left;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--ink-faint);
+    background:var(--line-soft);
+    padding:11px 16px;
+    border-bottom:1px solid var(--line);
+    font-weight:600;
+  }
+  tbody td{
+    padding:12px 16px;
+    border-bottom:1px solid var(--line-soft);
+    color:var(--ink-soft);
+    vertical-align:top;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody td.cat{ color:var(--ink); font-weight:600; white-space:nowrap; }
+  tbody td.action{ color:var(--accent-ink); font-weight:500; }
+  tbody tr.special td{ background:var(--warning-soft); }
+
+  /* callouts */
+  .callout{
+    display:flex; gap:12px;
+    border-radius:12px;
+    padding:16px 18px;
+    margin:18px 0;
+    border:1px solid;
+    font-size:14.5px;
+  }
+  .callout .icon{ font-size:18px; line-height:1.3; }
+  .callout p{ margin:0; color:var(--ink); }
+  .callout.key{ background:var(--accent-soft); border-color:color-mix(in srgb, var(--accent) 30%, transparent); }
+  .callout.warn{ background:var(--warning-soft); border-color:color-mix(in srgb, var(--warning) 40%, transparent); }
+
+  /* attachments list */
+  .att-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:18px 0; }
+  @media (max-width:720px){ .att-grid{ grid-template-columns:1fr; } }
+  .att-card{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:16px;
+    background:var(--paper-raised);
+  }
+  .att-card .att-kind{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--accent-ink);
+    display:block; margin-bottom:8px;
+  }
+  .att-card p{ margin:0; font-size:13.5px; color:var(--ink-soft); }
+
+  /* troubleshooting */
+  .trouble{ display:flex; flex-direction:column; gap:12px; margin:18px 0; }
+  .trouble-item{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:18px;
+    padding:16px 18px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:var(--paper-raised);
+  }
+  @media (max-width:760px){ .trouble-item{ grid-template-columns:1fr; gap:8px; } }
+  .trouble-item .lbl{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--ink-faint); display:block; margin-bottom:4px;
+  }
+  .trouble-item .val{ font-size:13.5px; color:var(--ink); }
+  .trouble-item .val.symptom{ font-weight:600; }
+
+  footer{
+    max-width:1180px; margin:0 auto; padding:40px 32px 64px;
+    color:var(--ink-faint); font-size:13px;
+    border-top:1px solid var(--line);
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow">Manual de uso</div>
+      <h1>Exervis Mail Triage</h1>
+      <p>Lee la bandeja de <code>prueba@exervis.com</code>, clasifica cada correo con IA según las reglas de negocio de facturación, y ejecuta la acción correspondiente — reenviar, actualizar en sistema, o marcar para revisión manual.</p>
+    </div>
+    <div class="hero-meta">
+      <div><strong>8 secciones</strong>de cómo abrir la app a qué hacer si falla algo</div>
+      <div><strong>11 categorías</strong>de clasificación de negocio</div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Índice">
+    <ol id="toc-list">
+      <li><a href="#s1"><span class="toc-num">01</span>Abrir la aplicación</a></li>
+      <li><a href="#s2"><span class="toc-num">02</span>Iniciar sesión</a></li>
+      <li><a href="#s3"><span class="toc-num">03</span>El dashboard</a></li>
+      <li><a href="#s4"><span class="toc-num">04</span>Reglas de negocio</a></li>
+      <li><a href="#s5"><span class="toc-num">05</span>Envío real de correos</a></li>
+      <li><a href="#s6"><span class="toc-num">06</span>Confianza de la IA</a></li>
+      <li><a href="#s7"><span class="toc-num">07</span>Adjuntos</a></li>
+      <li><a href="#s8"><span class="toc-num">08</span>Si algo no funciona</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="s1">
+      <div class="section-head"><span class="num">01</span><h2>Abrir la aplicación</h2></div>
+      <p class="lede">No hace falta instalar nada, ni configurar nada, ni tener conocimientos técnicos. Todo lo necesario ya viene preparado dentro de la carpeta que has recibido.</p>
+
+      <div class="steps">
+        <div class="step"><div class="step-body"><strong>Descomprime el archivo .zip</strong><span>Botón derecho sobre el archivo → "Extraer todo" (o similar, según tu sistema).</span></div></div>
+        <div class="step"><div class="step-body"><strong>Haz doble clic en "iniciar_prueba.bat"</strong><span>Está dentro de la carpeta descomprimida, junto a este manual.</span></div></div>
+      </div>
+
+      <div class="callout key">
+        <span class="icon">🖥️</span>
+        <p>Se abrirá una ventana negra — es normal, es la aplicación arrancando. A los pocos segundos el navegador se abrirá solo con la pantalla de acceso. <strong>No cierres esa ventana negra</strong> mientras uses la aplicación: es lo que la mantiene funcionando.</p>
+      </div>
+    </section>
+
+    <section id="s2">
+      <div class="section-head"><span class="num">02</span><h2>Iniciar sesión</h2></div>
+      <p class="lede">Escribe el correo y la contraseña de la cuenta de Exervis que se va a gestionar. La aplicación comprueba que son correctos antes de dejarte entrar.</p>
+      <p>Si algo falla, te lo dirá en pantalla con un mensaje claro, en vez de quedarse colgada sin explicación. Tus datos de acceso solo se usan mientras tienes la sesión abierta.</p>
+    </section>
+
+    <section id="s3">
+      <div class="section-head"><span class="num">03</span><h2>El dashboard</h2></div>
+      <p class="lede">Tres zonas: la barra superior con los controles, la bandeja de entrada a la izquierda, y a la derecha el correo seleccionado con su historial de gestión.</p>
+
+      <h3>Barra superior</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Elemento</th><th>Qué hace</th></tr></thead>
+          <tbody>
+            <tr><td class="cat">Envío Real de Correos</td><td>Interruptor maestro de seguridad — ver sección 05.</td></tr>
+            <tr><td class="cat">Escuchando</td><td>La bandeja se actualiza sola cada 15 segundos y trae los correos nuevos que hayan llegado. Esto no implica que se procesen solos — eso depende del interruptor de Envío Real.</td></tr>
+            <tr><td class="cat">Procesar Bandeja</td><td>Clasifica con IA y ejecuta la acción de todos los correos "pendiente" de una vez.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Bandeja de entrada</h3>
+      <p>Lista de correos con tres filtros: <strong>Todos</strong>, <strong>Pendientes</strong>, <strong>Procesados</strong>. Cada fila muestra remitente, asunto, fecha y estado.</p>
+
+      <h3>Visor de correo</h3>
+      <p>Al seleccionar un correo procesado, además del contenido se ve la <strong>categoría asignada con su % de confianza</strong>, un botón para ver el detalle de la decisión, y un botón <strong>Procesar / Reprocesar</strong> para relanzar la clasificación de ese correo.</p>
+
+      <h3>Historial de gestión</h3>
+      <p>Línea de tiempo con cada paso real que da el agente al procesar el correo seleccionado:</p>
+      <div class="steps">
+        <div class="step"><div class="step-body"><strong>Recepción</strong><span>Correo recibido.</span></div></div>
+        <div class="step"><div class="step-body"><strong>Adjuntos<span class="tag-opt">si tiene</span></strong><span>Qué se extrajo de cada adjunto, y si alguno falló.</span></div></div>
+        <div class="step"><div class="step-body"><strong>Análisis</strong><span>La Inteligencia Artificial está leyendo el correo.</span></div></div>
+        <div class="step"><div class="step-body"><strong>Clasificación</strong><span>Categoría asignada y % de confianza.</span></div></div>
+        <div class="step"><div class="step-body"><strong>Extracción</strong><span>Datos de negocio extraídos: fechas, importes, referencias.</span></div></div>
+        <div class="step"><div class="step-body"><strong>Acción</strong><span>Qué regla de negocio se aplicó y a quién/qué sistema.</span></div></div>
+        <div class="step"><div class="step-body"><strong>Reenvío<span class="tag-opt">si aplica</span></strong><span>Si el correo se envió de verdad o solo se simuló.</span></div></div>
+        <div class="step"><div class="step-body"><strong>Completado</strong><span>Fin del procesamiento.</span></div></div>
+      </div>
+      <p>Si el correo aún no se ha procesado, este panel lo indica claramente en vez de mostrar un historial vacío o falso.</p>
+    </section>
+
+    <section id="s4">
+      <div class="section-head"><span class="num">04</span><h2>Reglas de negocio</h2></div>
+      <p class="lede">Qué hace la IA con cada tipo de correo — y a quién se deriva la acción.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Categoría</th><th>Se detecta cuando…</th><th>Acción</th></tr></thead>
+          <tbody>
+            <tr><td class="cat">🏥 Ausencia (Cliente)</td><td>Aviso de ausencia desde un dominio externo</td><td class="action">Reenviar a Producción/Delegación</td></tr>
+            <tr><td class="cat">🏭 Ausencia (Producción)</td><td>Mismo aviso desde un dominio @exervis.com</td><td class="action">Gestionar en sistema (Abono/Comparativa)</td></tr>
+            <tr><td class="cat">💰 Justificante de cobro</td><td>Justificantes de pago, confirmings, transferencias</td><td class="action">Reenviar a Glenis</td></tr>
+            <tr><td class="cat">📊 Info. facturación</td><td>Horas puntuales, datos para facturar</td><td class="action">Procesar en sistema de facturación</td></tr>
+            <tr><td class="cat">🏦 Cambio de cuenta</td><td>Solicitud de cambio de número de cuenta</td><td class="action">Actualizar en sistema</td></tr>
+            <tr><td class="cat">📋 Cambio datos / Presupuesto</td><td>Cambios de datos de cliente o solicitud de presupuesto</td><td class="action">Reenviar a Oficina Técnica</td></tr>
+            <tr><td class="cat">⚠️ Incidencia en servicio</td><td>Fallos o problemas en la prestación del servicio</td><td class="action">Reenviar a Producción/Delegación</td></tr>
+            <tr><td class="cat">🔄 Autorización recibo</td><td>Autorización para gestionar un recibo devuelto</td><td class="action">Reenviar a Pagos</td></tr>
+            <tr><td class="cat">📤 Solicitud de facturas</td><td>Piden factura de un mes o de un cargo concreto</td><td class="action">Procesar en sistema de facturación</td></tr>
+            <tr><td class="cat">🚨 Queja por subida de precios</td><td>Disconformidad con incrementos de precio</td><td class="action">Revisión manual (requiere humano)</td></tr>
+            <tr class="special"><td class="cat">❓ Sin clasificar</td><td>Confianza del modelo por debajo del umbral</td><td class="action">Revisión manual (requiere humano)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout key">
+        <span class="icon">🔑</span>
+        <p><strong>Regla clave:</strong> la distinción entre ausencia de Cliente y de Producción se decide <strong>solo por el dominio del remitente</strong>, nunca por lo que diga el texto del correo.</p>
+      </div>
+      <div class="callout key">
+        <span class="icon">📎</span>
+        <p><strong>El motivo real puede estar en un adjunto:</strong> si el cuerpo es vago pero trae un PDF, Word, Excel o una imagen con la información real, la IA lee ese contenido antes de clasificar.</p>
+      </div>
+    </section>
+
+    <section id="s5">
+      <div class="section-head"><span class="num">05</span><h2>Envío real de correos</h2></div>
+      <p class="lede">El interruptor más delicado de la app: decide si las acciones de tipo "reenviar" mandan un correo de verdad o solo se simulan.</p>
+
+      <div class="grid-2">
+        <div class="state-card off">
+          <span class="state-tag"><span class="dot"></span>Desactivado · por defecto</span>
+          <p>El paso "Reenvío" del historial dice <code style="background:transparent;border:none;color:inherit;padding:0;">[SIMULACIÓN]</code>.</p>
+          <p><strong>No sale ningún correo real.</strong> Modo seguro para pruebas y demos.</p>
+        </div>
+        <div class="state-card on">
+          <span class="state-tag"><span class="dot"></span>Activado</span>
+          <p>El reenvío se ejecuta de verdad y llega realmente a <strong>prueba3@exervis.com</strong>.</p>
+          <p>El correo incluye el motivo de negocio (a qué departamento iba dirigido) en el cuerpo.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="icon">⚡</span>
+        <p><strong>Efecto adicional:</strong> mientras está <strong>activado</strong>, el ciclo automático de 15 segundos no solo refresca la bandeja — también procesa automáticamente todos los pendientes, envío real incluido. Con el interruptor desactivado, el procesado sigue siendo siempre manual. Solo funciona con la ventana de la aplicación abierta.</p>
+      </div>
+      <p style="font-size:13.5px;">Este ajuste se recuerda aunque recargues la página, pero vuelve a "Desactivado" si cierras y vuelves a abrir la aplicación.</p>
+    </section>
+
+    <section id="s6">
+      <div class="section-head"><span class="num">06</span><h2>Confianza de la IA</h2></div>
+      <p class="lede">La IA no solo elige una categoría — también valora lo segura que está de esa elección.</p>
+      <p>Si no está lo bastante segura (menos de un 60% de confianza), no se arriesga a etiquetar mal el correo: lo marca como <strong>"Sin clasificar"</strong> y lo manda a revisión manual, explicando brevemente por qué no se ha fiado de su propia respuesta.</p>
+      <p>Así se evita que un correo ambiguo, vacío, publicidad o con varios motivos mezclados acabe con una etiqueta de negocio equivocada solo por rellenar un hueco.</p>
+    </section>
+
+    <section id="s7">
+      <div class="section-head"><span class="num">07</span><h2>Adjuntos</h2></div>
+      <p class="lede">Cómo se leen los distintos tipos de fichero adjunto en un correo.</p>
+      <div class="att-grid">
+        <div class="att-card">
+          <span class="att-kind">PDF · Word · Excel</span>
+          <p>Se lee el texto del documento y se lo pasa a la IA junto con el correo, antes de clasificar.</p>
+        </div>
+        <div class="att-card">
+          <span class="att-kind">Imágenes</span>
+          <p>Se envían directamente al modelo, que soporta visión — no hay extracción de texto previa, el propio modelo "las lee".</p>
+        </div>
+        <div class="att-card">
+          <span class="att-kind">Corruptos / no soportados</span>
+          <p>No rompen el procesamiento del correo: se registra un aviso y se sigue clasificando con el resto del contenido.</p>
+        </div>
+      </div>
+      <p>Desde el Historial de Gestión, cada adjunto analizado aparece como un chip clicable que lo descarga (sin previsualización).</p>
+    </section>
+
+    <section id="s8">
+      <div class="section-head"><span class="num">08</span><h2>Si algo no funciona</h2></div>
+      <p class="lede">No necesitas conocimientos técnicos para resolver lo más habitual. Si algo de esto no lo soluciona, avisa al equipo técnico.</p>
+      <div class="trouble">
+        <div class="trouble-item">
+          <div><span class="lbl">Si pasa esto</span><span class="val symptom">El navegador no se abre solo</span></div>
+          <div><span class="lbl">Prueba esto</span><span class="val">Abre tú mismo el navegador y escribe: <code>localhost:3000</code></span></div>
+          <div><span class="lbl">Si sigue sin funcionar</span><span class="val">Avisa al equipo técnico</span></div>
+        </div>
+        <div class="trouble-item">
+          <div><span class="lbl">Si pasa esto</span><span class="val symptom">La ventana negra se cierra sola o da un error</span></div>
+          <div><span class="lbl">Prueba esto</span><span class="val">Vuelve a hacer doble clic en "iniciar_prueba.bat"</span></div>
+          <div><span class="lbl">Si sigue sin funcionar</span><span class="val">Avisa al equipo técnico</span></div>
+        </div>
+        <div class="trouble-item">
+          <div><span class="lbl">Si pasa esto</span><span class="val symptom">Un correo queda marcado como "Error"</span></div>
+          <div><span class="lbl">Prueba esto</span><span class="val">Selecciónalo y pulsa "Reprocesar"</span></div>
+          <div><span class="lbl">Si sigue sin funcionar</span><span class="val">Avisa al equipo técnico</span></div>
+        </div>
+        <div class="trouble-item">
+          <div><span class="lbl">Si pasa esto</span><span class="val symptom">El acceso no funciona con el correo y contraseña correctos</span></div>
+          <div><span class="lbl">Prueba esto</span><span class="val">Comprueba que no hay espacios de más al escribir la contraseña</span></div>
+          <div><span class="lbl">Si sigue sin funcionar</span><span class="val">Avisa al equipo técnico</span></div>
+        </div>
+        <div class="trouble-item">
+          <div><span class="lbl">Si pasa esto</span><span class="val symptom">No aparecen correos nuevos en la bandeja</span></div>
+          <div><span class="lbl">Prueba esto</span><span class="val">Espera unos segundos — se actualiza sola cada 15s</span></div>
+          <div><span class="lbl">Si sigue sin funcionar</span><span class="val">Cierra sesión y vuelve a entrar</span></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>Exervis Mail Triage — Manual de uso interno.</footer>
+
+<script>
+  (function(){
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var pos = window.scrollY + 140;
+      var current = sections[0];
+      for (var i = 0; i < sections.length; i++){
+        if (sections[i] && sections[i].offsetTop <= pos) current = sections[i];
+      }
+      links.forEach(function(a){ a.classList.remove('active'); });
+      var idx = sections.indexOf(current);
+      if (idx > -1) links[idx].classList.add('active');
+    }
+    document.addEventListener('scroll', onScroll, { passive:true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>
