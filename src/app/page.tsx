@@ -6,6 +6,21 @@ import { login } from './actions/auth';
 
 export default function LoginPage() {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsConnecting(true);
+    setError('');
+
+    const formData = new FormData(e.currentTarget);
+    const result = await login(formData);
+
+    if (result?.error) {
+      setError(result.error);
+      setIsConnecting(false);
+    }
+  };
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden">
@@ -40,17 +55,19 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="mb-6 rounded-lg bg-orange-500/10 p-4 border border-orange-500/20">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-orange-200/80">
-                <p className="font-semibold text-orange-300 mb-1">Aviso importante (Seguridad de Microsoft)</p>
-                <p>Si usas Office 365 o Outlook, es muy probable que tu contraseña normal dé error porque Microsoft bloquea la autenticación básica. Necesitarás generar una <strong>Contraseña de aplicación (App Password)</strong> desde los ajustes de seguridad de tu cuenta Microsoft.</p>
+          {error && (
+            <div className="mb-6 rounded-lg bg-red-500/10 p-4 border border-red-500/20">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-red-200/80">
+                  <p className="font-semibold text-red-300 mb-1">Error de conexión</p>
+                  <p>{error}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          <form action={login} onSubmit={() => setIsConnecting(true)} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-zinc-300" htmlFor="email">
                 Correo de Outlook / Exervis
@@ -70,7 +87,7 @@ export default function LoginPage() {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-zinc-300" htmlFor="password">
-                Contraseña de Aplicación
+                Contraseña
               </label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />

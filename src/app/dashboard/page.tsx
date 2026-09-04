@@ -16,24 +16,35 @@ export default function DashboardPage() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [isProcessingOne, setIsProcessingOne] = useState(false);
 
-  // Fetch emails on mount
-  useEffect(() => {
-    async function fetchEmails() {
-      try {
-        setIsLoadingEmails(true);
-        const res = await fetch('/api/emails');
-        const data = await res.json();
-        if (data.success) {
-          setEmails(data.emails);
-        }
-      } catch (error) {
-        console.error('Error fetching emails:', error);
-      } finally {
-        setIsLoadingEmails(false);
+  // Fetch emails logic
+  const fetchEmails = useCallback(async (showLoader = true) => {
+    try {
+      if (showLoader) setIsLoadingEmails(true);
+      const res = await fetch('/api/emails');
+      const data = await res.json();
+      if (data.success) {
+        setEmails(data.emails);
       }
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+    } finally {
+      if (showLoader) setIsLoadingEmails(false);
     }
-    fetchEmails();
   }, []);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchEmails(true);
+  }, [fetchEmails]);
+
+  // Background polling every 15 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchEmails(false); // false so it doesn't show the loading spinner
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchEmails]);
 
   // Handle email selection
   const handleSelectEmail = useCallback(async (email: Email) => {

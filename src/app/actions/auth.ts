@@ -8,12 +8,33 @@ export async function login(formData: FormData) {
   const password = formData.get('password')?.toString();
 
   if (!email || !password) {
-    throw new Error('Email y contraseña son requeridos');
+    return { error: 'Email y contraseña son requeridos' };
   }
 
-  // En una app real de producción, esto debería ir encriptado o no guardarse así.
-  // Para esta prueba técnica, lo guardaremos en una cookie httpOnly temporal.
-  
+  try {
+    const imaps = (await import('imap-simple')).default;
+    const config = {
+      imap: {
+        user: email,
+        password: password,
+        host: 'imap.one.com',
+        port: 993,
+        tls: true,
+        authTimeout: 5000,
+        tlsOptions: { rejectUnauthorized: false }
+      }
+    };
+
+    console.log(`[LOGIN] Verificando credenciales IMAP para ${email}...`);
+    const connection = await imaps.connect(config);
+    connection.end();
+    console.log(`[LOGIN] Credenciales verificadas con éxito.`);
+  } catch (err: any) {
+    console.error(`[LOGIN] Error de autenticación:`, err.message);
+    return { error: `No se pudo conectar al correo: ${err.message}` };
+  }
+
+  // Si llegamos aquí, la conexión fue exitosa
   const cookieStore = await cookies();
   
   cookieStore.set('outlook_email', email, {

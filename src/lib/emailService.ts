@@ -83,7 +83,7 @@ export async function getEmails(): Promise<Email[]> {
       imap: {
         user: credentials.email,
         password: credentials.password,
-        host: 'outlook.office365.com',
+        host: 'imap.one.com',
         port: 993,
         tls: true,
         authTimeout: 10000,
@@ -91,21 +91,22 @@ export async function getEmails(): Promise<Email[]> {
       }
     };
 
-    console.log('[IMAP] Conectando a outlook.office365.com:993...');
+    console.log('[IMAP] Conectando a imap.one.com:993...');
     const connection = await imaps.connect(config);
     console.log('[IMAP] Conexión IMAP establecida con éxito!');
     
     console.log('[IMAP] Abriendo bandeja INBOX...');
     await connection.openBox('INBOX');
 
-    const searchCriteria = ['UNSEEN']; 
+    const searchCriteria = ['ALL']; 
     const fetchOptions = { bodies: ['HEADER', 'TEXT', ''], struct: true, markSeen: false };
 
-    console.log('[IMAP] Buscando correos UNSEEN...');
+    console.log('[IMAP] Buscando últimos correos...');
     const messages = await connection.search(searchCriteria, fetchOptions);
-    console.log(`[IMAP] Se encontraron ${messages.length} correos no leídos.`);
+    console.log(`[IMAP] Se encontraron ${messages.length} correos en total.`);
     
-    const recentMessages = messages.slice(-10).reverse();
+    // Limitamos a los últimos 50 para no saturar, pero cargar bastantes
+    const recentMessages = messages.slice(-50).reverse();
 
     const newEmails: Email[] = [];
 
@@ -153,7 +154,6 @@ export async function getEmails(): Promise<Email[]> {
   } catch (error) {
     console.error('\n[IMAP ERROR CATASTRÓFICO] Ha fallado la conexión IMAP!');
     console.error('[IMAP ERROR DETALLE]:', error);
-    console.error('[IMAP ERROR CONSEJO]: Si el error es de autenticación, recuerda que para Office 365 / Outlook necesitas usar una "Contraseña de aplicación" en vez de tu contraseña normal.\n');
     return [...emailStore];
   }
 }

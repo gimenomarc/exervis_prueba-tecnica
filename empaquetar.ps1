@@ -34,6 +34,13 @@ Copy-Item -Path ".\public" -Destination ".\$distFolder\public" -Recurse
 # Copiar package.json (por si acaso Next lo busca)
 Copy-Item -Path ".\package.json" -Destination ".\$distFolder\"
 
+# Copiar variables de entorno (API keys de OpenAI, etc)
+if (Test-Path ".\.env") {
+    Copy-Item -Path ".\.env" -Destination ".\$distFolder\.env"
+} elseif (Test-Path ".\.env.local") {
+    Copy-Item -Path ".\.env.local" -Destination ".\$distFolder\.env.local"
+}
+
 # 5. Crear el archivo .bat (El "ejecutable" que usará el CTO)
 Write-Host "4. Creando el archivo ejecutable iniciar_prueba.bat..."
 $batContent = @"

@@ -30,22 +30,12 @@ async function getTransporter(): Promise<{ transport: Transporter, user: string 
 
   // Recrear el transporter si el usuario cambió
   if (!transporter || currentConfigUser !== user) {
-    const service = (process.env.MAILING_SERVICE || 'outlook').toLowerCase();
-    const isOutlook = ['outlook', 'outlook365', 'office365', 'hotmail'].includes(service);
-
-    transporter = nodemailer.createTransport(
-      isOutlook
-        ? {
-            host: 'smtp.office365.com',
-            port: 587,
-            secure: false, // STARTTLS
-            auth: { user, pass: password },
-          }
-        : {
-            service: process.env.MAILING_SERVICE,
-            auth: { user, pass: password },
-          }
-    );
+    transporter = nodemailer.createTransport({
+      host: 'send.one.com',
+      port: 465,
+      secure: true, // true para puerto 465 (SSL)
+      auth: { user, pass: password },
+    });
     currentConfigUser = user;
   }
 
