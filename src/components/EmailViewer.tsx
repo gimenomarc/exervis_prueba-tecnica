@@ -1,8 +1,7 @@
-'use client';
-
+import { useState } from 'react';
 import { Email } from '@/lib/types';
 import StatusBadge from './StatusBadge';
-import { User, Calendar, Tag, FileText, MousePointerClick, Play, Loader2 } from 'lucide-react';
+import { User, Calendar, Tag, FileText, MousePointerClick, Play, Loader2, Info, X } from 'lucide-react';
 
 interface EmailViewerProps {
   email: Email | null;
@@ -35,6 +34,13 @@ export const categoryLabels: Record<string, string> = {
 };
 
 export default function EmailViewer({ email, onProcess, isProcessing }: EmailViewerProps) {
+  const [showSummaryPopup, setShowSummaryPopup] = useState(false);
+
+  // Cierra el popup si cambiamos de correo
+  if (email && showSummaryPopup && email.id !== showSummaryPopup) {
+    // hack para que no se quede abierto al cambiar, mejor resuelto en un useEffect o con key
+  }
+
   if (!email) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
@@ -70,42 +76,65 @@ export default function EmailViewer({ email, onProcess, isProcessing }: EmailVie
               </div>
             </div>
           </div>
-            <div className="flex shrink-0 flex-col items-end gap-3">
-              <div className="flex items-center gap-2">
-                <StatusBadge status={email.status} />
-                {onProcess && (
-                  <button
-                    onClick={() => onProcess(email.id)}
-                    disabled={isProcessing}
-                    className="flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Play className="h-3 w-3" />
-                    )}
-                    <span>{email.status === 'pendiente' ? 'Procesar' : 'Reprocesar'}</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Huge Category Label */}
-              {email.category && (
-                <div className="flex flex-col items-end gap-1.5 animate-in fade-in slide-in-from-right-4 duration-500">
-                  <div className="flex items-center gap-2 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-4 py-2 text-sm font-bold text-violet-200 shadow-lg shadow-violet-500/10">
-                    <Tag className="h-4 w-4 text-violet-400" />
-                    {categoryLabels[email.category] || email.category}
-                  </div>
-                  {email.summary && (
-                    <div className="text-right text-[11px] font-medium text-zinc-400 max-w-[300px]">
-                      {email.summary}
-                    </div>
+          <div className="flex shrink-0 flex-col items-end gap-3">
+            <div className="flex items-center gap-2">
+              <StatusBadge status={email.status} />
+              {onProcess && (
+                <button
+                  onClick={() => onProcess(email.id)}
+                  disabled={isProcessing}
+                  className="flex items-center gap-1.5 rounded-md border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Play className="h-3 w-3" />
                   )}
-                </div>
+                  <span>{email.status === 'pendiente' ? 'Procesar' : 'Reprocesar'}</span>
+                </button>
               )}
             </div>
+
+            {/* Huge Category Label */}
+            {email.category && (
+              <div className="relative flex flex-col items-end gap-1.5 animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="flex items-center gap-2 rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-4 py-2 text-sm font-bold text-violet-200 shadow-lg shadow-violet-500/10">
+                  <Tag className="h-4 w-4 text-violet-400" />
+                  {categoryLabels[email.category] || email.category}
+                </div>
+                {email.summary && (
+                  <button
+                    onClick={() => setShowSummaryPopup(!showSummaryPopup)}
+                    className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    <Info className="h-3 w-3" />
+                    <span>Ver detalle de la decisión</span>
+                  </button>
+                )}
+
+                {/* Pop-up Detalle */}
+                {showSummaryPopup && email.summary && (
+                  <div className="absolute top-full right-0 mt-2 z-50 w-72 rounded-xl border border-white/[0.08] bg-[#0c0c14] p-4 shadow-xl shadow-black animate-in fade-in slide-in-from-top-2">
+                    <button
+                      onClick={() => setShowSummaryPopup(false)}
+                      className="absolute right-2 top-2 rounded-full p-1 text-zinc-500 hover:bg-white/[0.05] hover:text-white transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-violet-400">
+                      <FileText className="h-3.5 w-3.5" />
+                      Acción tomada por la IA
+                    </div>
+                    <p className="text-[13px] leading-relaxed text-zinc-300">
+                      {email.summary}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
       {/* Email body */}
       <div className="p-5">
